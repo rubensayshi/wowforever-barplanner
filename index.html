@@ -5,7 +5,7 @@
 <title>Bar Planner</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
-/* Layout: an in-game screen (class backdrop, main bar with extra bars stacked on top, stance/pet bar above,
+/* Layout: an in-game screen (race backdrop, main bar with extra bars stacked on top, stance/pet bar above,
    bars 4-5 on the right edge), a spellbook to drag from, and a side column with the button and macro editors.
    Look: the game's own UI. Dark frames with bronze edges, red buttons, a parchment spellbook, gold headings. */
 :root {
@@ -102,7 +102,7 @@ header.top { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: flex-e
 .toolbar .lbl { color: var(--muted); font-family: var(--font-display); }
 #kbBtn[aria-pressed="true"] { color: #fff; background: linear-gradient(var(--red-hi), var(--red-lo)); box-shadow: 0 0 0 1px var(--gold-dim), 0 0 10px rgb(255 60 30 / .5); }
 
-/* The game screen. Backdrop changes with the class. */
+/* The game screen. The backdrop is the race's starting zone. */
 .screen { position: relative; container: screen / inline-size; aspect-ratio: 16 / 10; border-radius: 6px; overflow: hidden;
   background: #2a2f38 var(--backdrop, none) center / cover no-repeat; color: #fff; user-select: none;
   display: flex; flex-direction: column; justify-content: flex-end;
@@ -667,10 +667,10 @@ function renderScreen() {
   const side = BARS.filter((b) => b.where === "side" && shown.includes(b.key)).map((b) => barHtml(b, true));
   const sc = $("screen");
   sc.classList.toggle("kb", kbMode);
-  sc.style.setProperty("--backdrop", `url("backdrops/${app.cls.toLowerCase()}.webp")`);
+  sc.style.setProperty("--backdrop", `url("backdrops/${app.race.toLowerCase().replace(/\s+/g, "")}.webp")`); // the race's starting zone
   sc.innerHTML = `
     ${kbMode ? `<div class="kbdialog"><h3>Keybind mode</h3><p>Hover over a button and press a key, a mouse button (middle, 4, 5) or scroll to bind it. Right-click a button to clear its key.</p><div class="last">${esc(lastBound)}</div><button class="btn" id="kbDone">Okay</button></div>` : ""}
-    ${kbMode ? "" : `<div class="screen-hint">${esc(CLASS_NAME[app.cls])} · level ${app.level}${page ? " · main bar: " + esc((stanceForPage(page) || {}).n || "stance page") : ""}</div>`}
+    ${kbMode ? "" : `<div class="screen-hint">${esc(app.race)} ${esc(CLASS_NAME[app.cls])} · level ${app.level}${page ? " · main bar: " + esc((stanceForPage(page) || {}).n || "stance page") : ""}</div>`}
     <div class="stage">
       <div class="side">${side.join("")}</div>
       <div class="stack">${stack.join("")}<div class="mini-row small">${stanceBarHtml()}${petBarHtml()}</div></div>

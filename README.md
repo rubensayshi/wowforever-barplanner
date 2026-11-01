@@ -24,10 +24,10 @@ The addon refuses a plan made for a different class. It hasn't been tested in th
 | File | What it is |
 |---|---|
 | [index.html](index.html) | The planner, with the spellbook data embedded. Plans are saved in your browser. |
-| [backdrops/](backdrops) | One screenshot per class for the screen's backdrop, 1440x900 WebP. |
+| [backdrops/](backdrops) | One screenshot per race (its starting zone) for the screen's backdrop, 1440x900 WebP. |
 | [addon/BarPlan](addon/BarPlan) | The in-game importer (`/barplan`). |
 | [tools/build-spellbook.py](tools/build-spellbook.py) | Rebuilds the spellbook data in index.html: `python3 -I tools/build-spellbook.py index.html [cache.json]` |
-| [tools/fetch-backdrops.py](tools/fetch-backdrops.py) | Downloads the class backdrops from Warcraft Wiki and shrinks them: `python3 -I tools/fetch-backdrops.py backdrops` (needs Pillow) |
+| [tools/fetch-backdrops.py](tools/fetch-backdrops.py) | Downloads the race backdrops from Warcraft Wiki and shrinks them: `python3 -I tools/fetch-backdrops.py backdrops` (needs Pillow) |
 | [.github/workflows/pages.yml](.github/workflows/pages.yml) | Publishes the page, the backdrops and BarPlan.zip on every push to `main`. |
 
 ## Plan string
@@ -54,7 +54,7 @@ Read 2026-11-01.
 - EUI Tweaks (lists game version 1.60.1): https://www.curseforge.com/wow/addons/eui-tweaks
 - Action slot numbers, including stance/form pages (slots 73–120, separate from bars 2–5): https://warcraft.wiki.gg/wiki/Action_slot (retail page; Classic uses the same pages for Warrior, Druid Cat/Bear, Rogue Stealth)
 - Spellbook data: trainer spells per class and level from What's Training (https://github.com/fusionpit/WhatsTraining, Classes/Vanilla), names and icons from Wowhead's Classic tooltip API (https://nether.wowhead.com/classic/tooltip/spell/<id>). Vanilla data, not Forever's class changes.
-- Class backdrops, screenshots from Warcraft Wiki (fetched 2026-11-01, file names in tools/fetch-backdrops.py): Warrior Valley of Honor, Paladin Light's Hope Chapel, Hunter Mulgore vista, Rogue Ravenholdt, Priest Cathedral of Light, Shaman Kharanos, Mage The Mage Quarter, Warlock Dark Portal crater (Classic), Druid Moonglade. Several are from later expansions, so they don't always look like the Classic client. https://warcraft.wiki.gg/images/<file>
+- Race backdrops, starting-zone screenshots from Warcraft Wiki (fetched 2026-11-01, file names in tools/fetch-backdrops.py): Human Northshire Abbey, Dwarf Kharanos, Gnome Gates of Ironforge, Night Elf Dolanaar, Orc Valley of Trials, Undead Tirisfal Glades, Tauren Camp Narache, Troll Durotar, Skyborne Thunder Bluff (Zephras Isle has no screenshots on the wiki yet). Some are from later expansions, so they don't always look like the Classic client. https://warcraft.wiki.gg/images/<file>
 - Heading font: Marcellus (Google Fonts), standing in for the game's Friz Quadrata
 - Spell icons load from https://wow.zamimg.com/images/wow/icons/
 

@@ -1,7 +1,9 @@
-"""Download the class backdrops from Warcraft Wiki and save them as backdrops/<class>.webp.
+"""Download the race backdrops from Warcraft Wiki and save them as backdrops/<race>.webp.
 
-Each class gets a screenshot of a place that fits it. The images are cropped to
-16:10 (the screen's shape) and shrunk to 1440x900 so the page stays light.
+Each race gets a screenshot of its starting zone. Skyborne start on Zephras Isle,
+which has no screenshots on the wiki yet, so they get Thunder Bluff, where Horde
+Skyborne arrive. The images are cropped to 16:10 (the screen's shape) and
+shrunk to 1440x900 so the page stays light.
 
 Run: python3 -I tools/fetch-backdrops.py [backdrops]
 Needs Pillow. Files that already exist are skipped; delete one to fetch it again.
@@ -15,17 +17,17 @@ import urllib.request
 
 from PIL import Image
 
-# class -> (Warcraft Wiki file name, horizontal focus 0..1 for the crop)
+# race (lowercase, no spaces) -> (Warcraft Wiki file name, horizontal focus 0..1 for the crop)
 BACKDROPS = {
-    "warrior": ("Valley of Honor.jpg", 0.5),
-    "paladin": ("Light's Hope Chapel.jpg", 0.5),
-    "hunter": ("Mulgore vista.jpg", 0.5),
-    "rogue": ("Ravenholdt.jpg", 0.5),
-    "priest": ("Cathedral of Light.jpg", 0.5),
-    "shaman": ("Kharanos.jpg", 0.5),
-    "mage": ("The Mage Quarter.jpg", 0.5),
-    "warlock": ("Dark Portal crater (Classic).jpg", 0.5),
-    "druid": ("Moonglade.jpg", 0.5),
+    "human": ("Northshire Abbey.jpg", 0.5),
+    "dwarf": ("Kharanos.jpg", 0.5),
+    "gnome": ("Gates of Ironforge.jpg", 0.5),
+    "nightelf": ("Dolanaar.jpg", 0.5),
+    "orc": ("Valley of Trials.jpg", 0.5),
+    "undead": ("Tirisfal Glades.jpg", 0.5),
+    "tauren": ("Camp Narache.jpg", 0.5),
+    "troll": ("Durotar.jpg", 0.5),
+    "skyborne": ("Thunder Bluff in the distance.jpg", 0.5),
 }
 SIZE = (1440, 900)
 USER_AGENT = "barplanner-build/1.0 (+https://github.com/rubensayshi/wowforever-barplanner)"
@@ -52,16 +54,16 @@ def crop_to(img, size, focus):
 def main(out_dir="backdrops"):
     out = pathlib.Path(out_dir)
     out.mkdir(exist_ok=True)
-    for cls, (name, focus) in BACKDROPS.items():
-        path = out / f"{cls}.webp"
+    for race, (name, focus) in BACKDROPS.items():
+        path = out / f"{race}.webp"
         if path.exists():
-            print(f"{cls}: have it")
+            print(f"{race}: have it")
             continue
         req = urllib.request.Request(url_for(name), headers={"User-Agent": USER_AGENT})
         with urllib.request.urlopen(req, timeout=60) as r:
             img = Image.open(io.BytesIO(r.read())).convert("RGB")
         crop_to(img, SIZE, focus).save(path, "WEBP", quality=55, method=6)
-        print(f"{cls}: {name} -> {path} ({path.stat().st_size // 1024} KB)")
+        print(f"{race}: {name} -> {path} ({path.stat().st_size // 1024} KB)")
         time.sleep(2)
 
 

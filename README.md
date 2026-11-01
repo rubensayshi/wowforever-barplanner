@@ -17,7 +17,7 @@ Set up your WoW Forever action bars, macros and keybinds in the browser, then lo
 3. In game, out of combat: `/barplan`, paste, **Check**, **Apply**. This creates the macros, fills the buttons and saves the keybinds. Spells you haven't learned yet are skipped and go onto their button when you learn them.
 4. **Export my bars** in `/barplan` gives you a string to load back into the page.
 
-The addon refuses a plan made for a different class. It hasn't been tested in the real game client yet, only against a mock of the WoW API.
+The addon refuses a plan made for a different class. It has been tried on WoW Classic, where it worked, but not yet on the Forever client.
 
 ## Files
 

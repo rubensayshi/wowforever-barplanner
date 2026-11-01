@@ -26,7 +26,7 @@ python3 -I tools/fetch-backdrops.py backdrops                # needs Pillow
 ## Checking changes
 
 - Page: open `index.html` in a browser (or serve the folder) and try it. There are no automated tests.
-- Addon: not tested in the real game client yet, only against a mock of the WoW API (not in this repo).
+- Addon: tried on WoW Classic (2026-11-01), where it worked; not yet tested on the Forever client. Beyond that, only checked against a mock of the WoW API (not in this repo).
 
 ## Git
 

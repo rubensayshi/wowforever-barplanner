@@ -2,7 +2,7 @@
 
 Set up your WoW Forever action bars, macros and keybinds in the browser, then load them into the game with one string.
 
-**Page:** https://rubensayshi.github.io/barplanner/
+**Page:** https://rubensayshi.github.io/wowforever-barplanner/
 
 - An in-game-looking screen: main bar with bars 2, 3 and 6–8 stacked on top, bars 4 and 5 on the right edge, stance bar and pet bar above.
 - Pick a class and race, then drag spells from that class's spellbook. A level slider greys out spells you won't have yet.
@@ -11,7 +11,7 @@ Set up your WoW Forever action bars, macros and keybinds in the browser, then lo
 
 ## Getting it into the game
 
-1. Download [BarPlan.zip](https://rubensayshi.github.io/barplanner/BarPlan.zip) and unzip it into `Interface/AddOns`, so you get `Interface/AddOns/BarPlan`.
+1. Download [BarPlan.zip](https://rubensayshi.github.io/wowforever-barplanner/BarPlan.zip) and unzip it into `Interface/AddOns`, so you get `Interface/AddOns/BarPlan`.
 2. Copy the plan string from the page.
 3. In game, out of combat: `/barplan`, paste, **Check**, **Apply**. This creates the macros, fills the buttons and saves the keybinds. Spells you haven't learned yet are skipped and go onto their button when you learn them.
 4. **Export my bars** in `/barplan` gives you a string to load back into the page.

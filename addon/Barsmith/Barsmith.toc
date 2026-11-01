@@ -4,5 +4,6 @@
 ## Author: Ruben
 ## Version: @project-version@
 ## SavedVariables: BarsmithDB
+## X-Curse-Project-ID: 1778365
 
 Barsmith.lua

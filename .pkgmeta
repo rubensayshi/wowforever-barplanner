@@ -2,6 +2,11 @@
 # The addon lives in addon/Barsmith, so move it to the root of the zip and leave the page out.
 package-as: Barsmith
 
+# Written by hand: the git log is mostly page changes.
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
 move-folders:
   Barsmith/addon/Barsmith: Barsmith
 

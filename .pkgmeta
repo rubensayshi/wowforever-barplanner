@@ -8,6 +8,7 @@ move-folders:
 ignore:
   - index.html
   - backdrops
+  - art
   - tools
   - README.md
   - CLAUDE.md

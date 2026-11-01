@@ -1,4 +1,4 @@
--- BarPlan: applies a plan made in bar-planner.html.
+-- BarPlan: applies a plan made in the bar planner page (index.html).
 -- Paste the plan string into /barplan and press Apply. It
 --   * creates or updates the plan's macros (matched by name),
 --   * puts spells, macros and items into the planned action slots,
@@ -21,7 +21,7 @@ local DEFAULT_ICON = "INV_Misc_QuestionMark"
 local MACRO_BODY_MAX = 255
 
 ------------------------------------------------------------------------
--- Bars, slots and binding commands (same tables as bar-planner.html)
+-- Bars, slots and binding commands (same tables as index.html)
 ------------------------------------------------------------------------
 
 -- first = first action slot of the bar, bind = binding command prefix
@@ -605,7 +605,7 @@ local function buildFrame()
     help:SetPoint("TOPLEFT", 16, -34)
     help:SetPoint("TOPRIGHT", -16, -34)
     help:SetJustifyH("LEFT")
-    help:SetText("Paste a plan string from bar-planner.html (Ctrl+V). Check shows what would change, Apply does it.")
+    help:SetText("Paste a plan string from the bar planner page (Ctrl+V). Check shows what would change, Apply does it.")
 
     local scroll = CreateFrame("ScrollFrame", "BarPlanScroll", f, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", 18, -56)

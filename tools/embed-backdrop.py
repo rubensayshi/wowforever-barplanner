@@ -1,11 +1,11 @@
-"""Inline the default backdrop screenshot into bar-planner.html.
+"""Inline the default backdrop screenshot into index.html.
 
 The default is Kharanos (Dun Morogh) from Warcraft Wiki, shrunk to 1440x810 WebP:
 
   curl -A "Mozilla/5.0" -o Kharanos.jpg https://warcraft.wiki.gg/images/Kharanos.jpg
   python3 -c "from PIL import Image; Image.open('Kharanos.jpg').convert('RGB').resize((1440, 810)).save('kharanos.webp', quality=55, method=6)"
 
-Then run: python3 -I tools/embed-backdrop.py kharanos.webp bar-planner.html
+Then run: python3 -I tools/embed-backdrop.py kharanos.webp index.html
 """
 import base64
 import pathlib

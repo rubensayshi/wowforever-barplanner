@@ -40,6 +40,7 @@ h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.7rem; line
 h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.1rem; margin: 0 0 8px; }
 code { font-family: var(--font-mono); font-size: .85em; }
 .muted { color: var(--muted); }
+a { color: var(--accent); }
 .lede { color: var(--muted); max-width: 80ch; margin: 4px 0 0; font-size: .95rem; }
 button, input, select, textarea { font: inherit; color: var(--fg); }
 input[type="text"], input[type="search"], select, textarea { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; min-width: 0; }
@@ -266,7 +267,7 @@ ol.steps li, .howto ul li { margin-bottom: 5px; }
   <section class="panel howto">
     <h2>How to use it</h2>
     <ol class="steps">
-      <li>Copy <code>addon/BarPlan</code> into the game's <code>Interface/AddOns</code> folder (where EllesmereUI is).</li>
+      <li>Download <a href="BarPlan.zip">BarPlan.zip</a> and unzip it into the game's <code>Interface/AddOns</code> folder (where EllesmereUI is), so you get <code>Interface/AddOns/BarPlan</code>. Source: <a href="https://github.com/rubensayshi/barplanner">github.com/rubensayshi/barplanner</a>.</li>
       <li>Plan here, per class. The level slider greys out spells you won't have yet.</li>
       <li>In game, out of combat: <code>/barplan</code>, paste, <b>Check</b>, <b>Apply</b>. Spells you haven't learned are skipped.</li>
       <li>Later spells go onto their planned button when you learn them (if it's empty). <code>/barplan apply</code> runs the plan again.</li>

@@ -1,4 +1,4 @@
-"""Build the spellbook data in bar-planner.html.
+"""Build the spellbook data in index.html.
 
 Spell lists per class and level come from the What's Training addon
 (fusionpit/WhatsTraining, Classes/Vanilla). Names and icons come from
@@ -6,7 +6,7 @@ Wowhead's Classic tooltip API. Talents, stances, racials and professions
 are listed by hand below and checked against the names Wowhead returns.
 This is vanilla Classic data: Forever's class changes are not in it.
 
-Run: python3 -I tools/build-spellbook.py bar-planner.html [cache.json]
+Run: python3 -I tools/build-spellbook.py index.html [cache.json]
 The cache keeps tooltip lookups between runs.
 """
 import concurrent.futures
@@ -101,7 +101,7 @@ TOKENS = re.compile(
 
 
 def get(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (bar-planner build script)"})
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (barplanner build script)"})
     with urllib.request.urlopen(req, timeout=30) as r:
         return r.read().decode("utf-8")
 

@@ -14,7 +14,19 @@ A static page for planning WoW Forever action bars, macros and keybinds, plus an
 
 There is no build for the page itself. `.github/workflows/pages.yml` runs on every push to `main` (or by hand): it copies `index.html` and `backdrops/` into `_site`, zips `addon/Barsmith` into `_site/Barsmith.zip` (with the TOC's `@project-version@` filled in from `git describe`), and deploys that to GitHub Pages at https://rubensayshi.github.io/wowforever-barplanner/ (repo `rubensayshi/wowforever-barplanner`).
 
-Addon releases: pushing a tag `v*` runs `.github/workflows/release.yml`, which uses BigWigsMods/packager (configured by `.pkgmeta`) to zip `addon/Barsmith`, fill in `@project-version@` and upload to CurseForge as "Barsmith Importer" and to GitHub Releases. A tag containing `beta` or `alpha` is uploaded as that release type. Add an entry to `CHANGELOG.md` before tagging: it's the changelog CurseForge shows (`.pkgmeta` `manual-changelog`). The packager tags the file for each interface in the TOC (16001 → Forever 1.60.1, 11509 → Classic Era). The upload needs the repo secret `CF_API_KEY` and `## X-Curse-Project-ID:` in the TOC. The packager only knows the `_Camelot.toc` suffix for Forever, not `_Forever.toc`, if the TOC ever gets split.
+### Releasing the addon
+
+The addon is on CurseForge as "Barsmith Importer", project ID 1778365 (https://authors.curseforge.com/#/projects/1778365/files). The project page's logo and description are in `art/`. v1.0.0-beta1 was the first release (2026-11-01).
+
+To release:
+
+1. Add an entry for the new version at the top of `CHANGELOG.md`. It's the changelog CurseForge shows (`.pkgmeta` `manual-changelog`), written for players.
+2. Commit it to `main` and push.
+3. Tag the commit and push only that tag: `git tag -a v1.0.0-beta2 -m "Barsmith Importer v1.0.0-beta2"` then `git push origin v1.0.0-beta2`. Don't use `git push --tags`: every tag pushed starts its own release run, so an old tag would be uploaded again.
+
+Pushing a `v*` tag runs `.github/workflows/release.yml`. It uses BigWigsMods/packager v2.6.1 (configured by `.pkgmeta`) to zip `addon/Barsmith` with the root `LICENSE` and `CHANGELOG.md`, fill in `@project-version@` from the tag, upload to CurseForge and make a GitHub release. A tag containing `beta` or `alpha` is uploaded as that release type. The packager marks the file for each interface in the TOC (16001 → Forever 1.60.1, 11509 → Classic Era 1.15.9). The upload needs the repo secret `CF_API_KEY` (set) and `## X-Curse-Project-ID:` in the TOC. If the TOC ever gets split, the only Forever suffix the packager knows is `_Camelot.toc`, not `_Forever.toc`.
+
+Running the packager locally (to debug a release without the pipeline) works from Git Bash on Windows. Download `release.sh` from the packager's tag and run `bash release.sh -d -t <repo> -r <absolute dir>`; `-d` skips the upload, `-z` also skips the zip. It needs `jq` and `zip`. On Windows, `zip` is GnuWin32's (`C:\Program Files (x86)\GnuWin32\bin`) and `jq` needs a wrapper that adds `-b`, since Windows jq writes `\r\n` and that breaks the game version IDs in the upload. For a real upload, set `CF_API_KEY` and leave out `-d`.
 
 If you add a file the page needs, add it to the workflow's copy step too.
 

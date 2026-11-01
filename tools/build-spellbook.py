@@ -82,6 +82,9 @@ RACE_NAMES = {1: "Human", 2: "Orc", 3: "Dwarf", 4: "Night Elf", 5: "Undead", 6: 
 GENERAL = [  # (name, id, races or None, classes or None)
     ("Attack", 6603, None, None),
     ("Shoot", 5019, None, ["PRIEST", "MAGE", "WARLOCK"]),
+    ("Throw", 2764, None, ["WARRIOR", "ROGUE", "HUNTER"]),
+    ("Shoot Bow", 2480, None, ["WARRIOR", "ROGUE"]), ("Shoot Gun", 7918, None, ["WARRIOR", "ROGUE"]),
+    ("Shoot Crossbow", 7919, None, ["WARRIOR", "ROGUE"]),
     ("Stoneform", 20594, ["Dwarf"], None), ("Find Treasure", 2481, ["Dwarf"], None),
     ("Escape Artist", 20589, ["Gnome"], None), ("Perception", 20600, ["Human"], None),
     ("Shadowmeld", 20580, ["Night Elf"], None), ("Blood Fury", 20572, ["Orc"], None),

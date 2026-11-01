@@ -6,7 +6,7 @@ Set up your WoW Forever action bars, macros and keybinds in the browser, then lo
 
 - An in-game-looking screen: main bar with bars 2, 3 and 6–8 stacked on top, bars 4 and 5 on the right edge, stance bar and pet bar above.
 - Pick a class and race (only the combos Forever allows), then drag spells from that class's spellbook. A level slider greys out spells you won't have yet.
-- Write macros, plan the main bar once per stance or form, and bind keys in keybind mode (hover a button, press a key).
+- Write macros, plan the main bar once per stance or form and on its page 2 (Shift+2), and bind keys in keybind mode (hover a button, press a key).
 - Keep as many plans per class as you like. They're saved in your browser; the plan string moves them anywhere else.
 - Works with EllesmereUI, which uses the game's normal bar slots and keybinds.
 
@@ -37,6 +37,7 @@ The addon refuses a plan made for a different class. It hasn't been tested in th
 ```
 BARPLAN 1
 CLASS   SHAMAN
+RACE    Dwarf
 MACRO   name  icon  perChar  body
 SLOT    slot  spell|macro|item|clear  value
 BIND    key   command

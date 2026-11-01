@@ -38,6 +38,7 @@ local PAGES = {
     { first = 85,  label = "Bar 1 stance 2" },
     { first = 97,  label = "Bar 1 stance 3" },
     { first = 109, label = "Bar 1 stance 4" },
+    { first = 13,  label = "Bar 1 page 2" }, -- Shift+2; pages 3-6 are bars 4, 5, 3 and 2
 }
 
 -- Non-bar commands the planner offers under "Other keybinds".
@@ -77,6 +78,7 @@ end
 -- are written as \\, \t and \n.
 --   BARPLAN <version>
 --   CLASS   <WARRIOR, SHAMAN, ...> (optional; Apply refuses a plan for another class)
+--   RACE    <race name> (optional; the planner uses it for racials and the backdrop)
 --   NAME    <plan name>
 --   MACRO   <name> <icon> <0|1 per character> <body>
 --   SLOT    <slot> <spell|macro|item|clear> <value>
@@ -173,6 +175,8 @@ function BP.parse(text)
             version = tonumber(f[2])
         elseif kind == "CLASS" then
             plan.class = f[2]
+        elseif kind == "RACE" then
+            plan.race = unesc(f[2])
         elseif kind == "NAME" then
             plan.name = unesc(f[2])
         elseif kind == "MACRO" and f[2] and f[2] ~= "" then
@@ -197,6 +201,7 @@ end
 function BP.serialize(plan)
     local lines = { "BARPLAN\t" .. FORMAT_VERSION }
     if plan.class then lines[#lines + 1] = "CLASS\t" .. plan.class end
+    if plan.race then lines[#lines + 1] = "RACE\t" .. esc(plan.race) end
     if plan.name and plan.name ~= "" then lines[#lines + 1] = "NAME\t" .. esc(plan.name) end
     for _, m in ipairs(plan.macros or {}) do
         lines[#lines + 1] = table.concat({ "MACRO", esc(m.name), esc(m.icon), m.perChar and "1" or "0", esc(m.body) }, "\t")
@@ -355,8 +360,24 @@ local function resolveItem(value)
     return { kind = "item", id = id, pickup = function() pickupItem(id) end }
 end
 
+-- The game allows 16-character macro names. If it cut a longer one, find it by
+-- the cut name so a second Apply doesn't make a duplicate.
+local MACRO_NAME_MAX = 16
+local function macroIndex(name)
+    local idx = GetMacroIndexByName(name)
+    if idx and idx > 0 then return idx end
+    local chars = name:match(("[%z\1-\127\194-\244][\128-\191]*"):rep(MACRO_NAME_MAX))
+    for _, cut in ipairs({ cutBytes(name, MACRO_NAME_MAX), chars }) do
+        if cut and cut ~= name then
+            idx = GetMacroIndexByName(cut)
+            if idx and idx > 0 then return idx end
+        end
+    end
+    return 0
+end
+
 local function resolveMacro(value)
-    local idx = GetMacroIndexByName(value)
+    local idx = macroIndex(value)
     if not idx or idx == 0 then return nil, "no macro with that name" end
     return { kind = "macro", id = idx, pickup = function() PickupMacro(idx) end }
 end
@@ -391,7 +412,7 @@ local function applyMacros(plan, dry, r)
                 :format(m.name, #m.body, MACRO_BODY_MAX)
         end
         local icon = tonumber(m.icon) or (m.icon ~= "" and m.icon) or nil
-        local idx = GetMacroIndexByName(m.name)
+        local idx = macroIndex(m.name)
         if idx and idx > 0 then
             local _, oldIcon, oldBody = GetMacroInfo(idx)
             if trim(oldBody) == trim(body) then
@@ -519,7 +540,7 @@ local function reportLines(r, dry)
             :format(r.placed, r.same, r.cleared, r.macrosNew, r.macrosChanged, r.bound)
     end
     if #r.notLearned > 0 then
-        lines[#lines + 1] = ("Not learned yet, skipped (%d): %s"):format(#r.notLearned, table.concat(r.notLearned, ", "))
+        lines[#lines + 1] = ("Not learned yet (or misspelled), skipped (%d): %s"):format(#r.notLearned, table.concat(r.notLearned, ", "))
     end
     if #r.notInBags > 0 then
         lines[#lines + 1] = ("Not in your bags, skipped (%d): %s"):format(#r.notInBags, table.concat(r.notInBags, ", "))
@@ -535,7 +556,8 @@ end
 
 function BP.exportCurrent()
     local _, class = UnitClass("player")
-    local plan = { name = (UnitName("player") or "?") .. " (from game)", class = class, macros = {}, slots = {}, binds = {} }
+    local plan = { name = (UnitName("player") or "?") .. " (from game)", class = class,
+        race = UnitRace and (UnitRace("player")) or nil, macros = {}, slots = {}, binds = {} }
     local book = spellbookEntries()
     local seenMacro = {}
     local maxAccount = MAX_ACCOUNT_MACROS or 120

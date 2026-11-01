@@ -7,6 +7,7 @@ Set up your WoW Forever action bars, macros and keybinds in the browser, then lo
 - An in-game-looking screen: main bar with bars 2, 3 and 6–8 stacked on top, bars 4 and 5 on the right edge, stance bar and pet bar above.
 - Pick a class and race, then drag spells from that class's spellbook. A level slider greys out spells you won't have yet.
 - Write macros, plan the main bar once per stance or form, and bind keys in keybind mode (hover a button, press a key).
+- Keep as many plans per class as you like. They're saved in your browser; the plan string moves them anywhere else.
 - Works with EllesmereUI, which uses the game's normal bar slots and keybinds.
 
 ## Getting it into the game
@@ -22,11 +23,12 @@ The addon refuses a plan made for a different class. It hasn't been tested in th
 
 | File | What it is |
 |---|---|
-| [index.html](index.html) | The planner. One file, with the spellbook data and backdrop embedded. Plans are saved in your browser. |
+| [index.html](index.html) | The planner, with the spellbook data embedded. Plans are saved in your browser. |
+| [backdrops/](backdrops) | One screenshot per class for the screen's backdrop, 1440x900 WebP. |
 | [addon/BarPlan](addon/BarPlan) | The in-game importer (`/barplan`). |
 | [tools/build-spellbook.py](tools/build-spellbook.py) | Rebuilds the spellbook data in index.html: `python3 -I tools/build-spellbook.py index.html [cache.json]` |
-| [tools/embed-backdrop.py](tools/embed-backdrop.py) | Replaces the default backdrop screenshot: `python3 -I tools/embed-backdrop.py kharanos.webp index.html` |
-| [.github/workflows/pages.yml](.github/workflows/pages.yml) | Publishes the page and BarPlan.zip on every push to `main`. |
+| [tools/fetch-backdrops.py](tools/fetch-backdrops.py) | Downloads the class backdrops from Warcraft Wiki and shrinks them: `python3 -I tools/fetch-backdrops.py backdrops` (needs Pillow) |
+| [.github/workflows/pages.yml](.github/workflows/pages.yml) | Publishes the page, the backdrops and BarPlan.zip on every push to `main`. |
 
 ## Plan string
 
@@ -52,7 +54,8 @@ Read 2026-11-01.
 - EUI Tweaks (lists game version 1.60.1): https://www.curseforge.com/wow/addons/eui-tweaks
 - Action slot numbers, including stance/form pages (slots 73–120, separate from bars 2–5): https://warcraft.wiki.gg/wiki/Action_slot (retail page; Classic uses the same pages for Warrior, Druid Cat/Bear, Rogue Stealth)
 - Spellbook data: trainer spells per class and level from What's Training (https://github.com/fusionpit/WhatsTraining, Classes/Vanilla), names and icons from Wowhead's Classic tooltip API (https://nether.wowhead.com/classic/tooltip/spell/<id>). Vanilla data, not Forever's class changes.
-- Backdrop screenshot: Kharanos, Warcraft Wiki (https://warcraft.wiki.gg/images/Kharanos.jpg)
+- Class backdrops, screenshots from Warcraft Wiki (fetched 2026-11-01, file names in tools/fetch-backdrops.py): Warrior Valley of Honor, Paladin Light's Hope Chapel, Hunter Mulgore vista, Rogue Ravenholdt, Priest Cathedral of Light, Shaman Kharanos, Mage The Mage Quarter, Warlock Dark Portal crater (Classic), Druid Moonglade. Several are from later expansions, so they don't always look like the Classic client. https://warcraft.wiki.gg/images/<file>
+- Heading font: Marcellus (Google Fonts), standing in for the game's Friz Quadrata
 - Spell icons load from https://wow.zamimg.com/images/wow/icons/
 
 World of Warcraft and its icons and screenshots are Blizzard Entertainment's. This is a fan tool.

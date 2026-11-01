@@ -223,6 +223,16 @@ ol.steps li, .howto ul li { margin-bottom: 5px; }
 .tip .rd { color: var(--bad); }
 .tip .gn { color: var(--item); }
 .tip .gd { color: var(--gold); }
+.tip .wh table { border-collapse: collapse; width: 100%; }
+.tip .wh td, .tip .wh th { padding: 0; vertical-align: top; text-align: left; font-weight: 400; }
+.tip .wh th { text-align: right; padding-left: 12px; white-space: nowrap; }
+.tip .wh .whtt-name, .tip .wh b.whtt-name { font-size: 14.5px; font-weight: 400; color: #fff; }
+.tip .wh .q { color: var(--gold); } .tip .wh .q0 { color: #9d9d9d; } .tip .wh .q1 { color: #fff; } .tip .wh .q2 { color: var(--item); }
+.tip .wh .q3 { color: #0070dd; } .tip .wh .q4 { color: #a335ee; } .tip .wh .q5 { color: #ff8000; } .tip .wh .q10 { color: var(--bad); }
+.tip .wh b { font-weight: 400; }
+.tip .wh .indent { padding-left: 1em; }
+.tip .tip-extra { margin-top: 6px; padding-top: 5px; border-top: 1px solid rgb(255 255 255 / .15); }
+.tip { max-width: 320px; }
 @media (hover: none) { .tip { display: none; } }
 </style>
 <body>
@@ -315,7 +325,7 @@ ol.steps li, .howto ul li { margin-bottom: 5px; }
     <ul>
       <li>Bars 2 to 8 use their own action slots. The main bar has extra pages that only show in a stance or form (slots 73–120), so a warrior plans the main bar once per stance. The arrows next to Bar 1 switch to its page 2 (Shift+2 in game); pages 3 to 6 are the same buttons as bars 4, 5, 3 and 2.</li>
       <li>Apply only touches buttons and keys in the plan. A planned button ends up with exactly the key set here.</li>
-      <li>Spell data is vanilla Classic (What's Training + Wowhead). Forever changed classes, so check names against your spellbook. Any name typed in by hand works too.</li>
+      <li>Spell lists are vanilla Classic (What's Training + Wowhead). Forever changed classes, so check names against your spellbook. Any name typed in by hand works too. Tooltips come from Wowhead's Forever database, so they show Forever's numbers.</li>
       <li>Turn on the bars you use in EllesmereUI's settings. The stance and pet bar contents come from the game; only their keys are planned.</li>
     </ul>
   </section>
@@ -541,6 +551,21 @@ function findSpell(value) {
   if (m) { for (const sp of IDX.values()) if (sp.r.some(([id]) => id === +m[1])) return sp; return undefined; }
   return IDX.get(baseName(value).toLowerCase());
 }
+function spellIdFor(value) {
+  const sp = findSpell(value);
+  if (!sp || !sp.r || !sp.r[0][0]) return null;
+  const r = rankOf(value) || Math.max(1, knownRanks(sp));
+  return (sp.r[r - 1] || sp.r[sp.r.length - 1])[0];
+}
+function whAttr(kind, value) {
+  let key = null;
+  if (kind === "spell") { const id = spellIdFor(value); if (id) key = "spell:" + id; }
+  else if (kind === "item") {
+    const it = findItem(value), m = String(value || "").match(/^item:(\d+)$/i);
+    if (it && it.id) key = "item:" + it.id; else if (m) key = "item:" + m[1];
+  }
+  return key ? ` data-wh="${key}"` : "";
+}
 function findItem(value) {
   const v = String(value || "").toLowerCase();
   return D.items.find((it) => it.n.toLowerCase() === v || "item:" + it.id === v);
@@ -666,7 +691,7 @@ function slotHtml(slot, cmd) {
     key && "#Key: " + key, level && "!Requires level " + level,
     kbMode ? "+Press a key to bind it. Right-click clears." : s ? "+Click to edit. Drag to move." : "+Click to choose what goes here");
   const drag = s ? ` draggable="true" data-drag='${esc(JSON.stringify({ type: "slot", slot }))}'` : "";
-  return buttonHtml({ attrs: `data-slot="${slot}" data-cmd="${cmd}" tabindex="0" role="button" aria-label="${esc(title)}" data-tip="${esc(t)}"${drag}`, icon, text, name, key, level, cls });
+  return buttonHtml({ attrs: `data-slot="${slot}" data-cmd="${cmd}" tabindex="0" role="button" aria-label="${esc(title)}" data-tip="${esc(t)}"${s ? whAttr(s.kind, s.value) : ""}${drag}`, icon, text, name, key, level, cls });
 }
 function barHtml(bar, vertical) {
   const first = bar.key === "b1" && page ? page : bar.first;
@@ -694,7 +719,7 @@ function stanceBarHtml() {
     const key = P().binds[cmd];
     const t = tip(s.n, "~Stance bar", key && "#Key: " + key, lvl > app.level && "!Requires level " + lvl,
       s.page ? "+Click to plan the main bar for it" : "~Doesn't change the main bar");
-    return buttonHtml({ attrs: `data-cmd="${cmd}" data-stance="${i}" tabindex="0" role="button" aria-label="${esc(s.n)}" data-tip="${esc(t)}"`, icon: s.i, key, cls });
+    return buttonHtml({ attrs: `data-cmd="${cmd}" data-stance="${i}" tabindex="0" role="button" aria-label="${esc(s.n)}" data-tip="${esc(t)}"${whAttr("spell", s.n)}`, icon: s.i, key, cls });
   }).join("")}</div>`;
 }
 function petBarHtml() {
@@ -761,7 +786,7 @@ function renderBook() {
     foot.innerHTML = `<button class="btn" id="addMacro">New macro</button>`;
   } else {
     const entries = bookEntries();
-    list.innerHTML = entries.map((e) => `<div class="entry${e.later ? " later" : ""}" draggable="true" data-drag='${esc(JSON.stringify({ type: e.type, value: e.value }))}' aria-label="${esc(e.name)}" data-tip="${esc(tip(e.name, "~" + e.sub, e.later && "!Requires level " + e.lvl, sel && sel.slot ? "+Click to put it on the selected button" : "+Drag onto a bar"))}">
+    list.innerHTML = entries.map((e) => `<div class="entry${e.later ? " later" : ""}" draggable="true" data-drag='${esc(JSON.stringify({ type: e.type, value: e.value }))}' aria-label="${esc(e.name)}"${whAttr(e.type, e.value)} data-tip="${esc(tip(e.name, "~" + e.sub, e.later && "!Requires level " + e.lvl, sel && sel.slot ? "+Click to put it on the selected button" : "+Drag onto a bar"))}">
         <div class="ic" style="background-image:url(${ICON(e.icon, "medium")})"></div>
         <div><div class="nm">${esc(e.name)}</div><div class="sub">${esc(e.sub)}</div></div></div>`).join("")
       || `<div class="book-empty">Nothing here${$("search").value ? " for that search" : ""}.</div>`;
@@ -1279,13 +1304,53 @@ document.addEventListener("pointerover", (e) => {
   if (!t) { hideTip(); return; }
   if (t === tipFor) return;
   tipFor = t;
-  tipEl.innerHTML = t.dataset.tip.split("\n").map((l, i) => {
+  const lines = t.dataset.tip.split("\n");
+  const html = (ls, first) => ls.map((l, i) => {
     const c = TIP_CLASS[l[0]];
-    return `<div class="${i === 0 ? "t1" : ""} ${c || ""}">${esc(c ? l.slice(1) : l)}</div>`;
+    return `<div class="${first && i === 0 ? "t1" : ""} ${c || ""}">${esc(c ? l.slice(1) : l)}</div>`;
   }).join("");
+  tipEl.innerHTML = html(lines, true);
   tipEl.hidden = false;
-  placeTip(e.clientX, e.clientY);
+  const x = e.clientX, y = e.clientY;
+  placeTip(x, y);
+  if (!t.dataset.wh) return;
+  whTooltip(t.dataset.wh).then((wh) => {
+    if (!wh || tipFor !== t) return;
+    // Wowhead has the name and level requirement; keep our own notes (slot, rank, key, hints) below it.
+    const extra = lines.slice(1).filter((l) => !/^!Requires level/.test(l));
+    tipEl.innerHTML = `<div class="wh">${wh}</div>${extra.length ? `<div class="tip-extra">${html(extra, false)}</div>` : ""}`;
+    placeTip(x, y);
+  });
 });
+
+// ---- Wowhead tooltips from its Forever database (same source as Wowhead's own tooltip links) ----
+const WH = new Map(); // "spell:403" -> Promise of cleaned HTML, or null
+function whTooltip(key) {
+  if (!WH.has(key)) {
+    const [type, id] = key.split(":");
+    WH.set(key, fetch(`https://nether.wowhead.com/forever/tooltip/${type}/${id}?locale=0`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => (j && j.tooltip ? cleanWh(j.tooltip) : null))
+      .catch(() => null));
+  }
+  return WH.get(key);
+}
+// Keep only plain formatting from Wowhead's HTML: no scripts, links, images or attributes besides class.
+const WH_TAGS = new Set(["TABLE", "TBODY", "TR", "TD", "TH", "B", "I", "BR", "SPAN", "DIV", "SMALL"]);
+function cleanWh(html) {
+  const root = new DOMParser().parseFromString(html, "text/html").body;
+  for (const el of [...root.querySelectorAll("*")]) {
+    if (!el.isConnected) continue;
+    if (/^(SCRIPT|STYLE|IFRAME|OBJECT|EMBED|IMG|SVG|LINK|META|FORM|INPUT|BUTTON)$/.test(el.tagName)) { el.remove(); continue; }
+    if (!WH_TAGS.has(el.tagName)) {
+      const span = document.createElement("span");
+      span.className = el.className; span.append(...el.childNodes); el.replaceWith(span);
+      continue;
+    }
+    for (const a of [...el.attributes]) if (a.name !== "class") el.removeAttribute(a.name);
+  }
+  return root.innerHTML;
+}
 document.addEventListener("pointermove", (e) => { if (tipFor) placeTip(e.clientX, e.clientY); });
 document.addEventListener("dragstart", hideTip);
 addEventListener("scroll", hideTip, true);

@@ -82,6 +82,8 @@ header.top { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: flex-e
 /* Main grid */
 .app { display: grid; grid-template-columns: 300px minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
 .col-book, .col-side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+/* The spellbook ends where the bars screen ends (--bars-h is measured in the script). */
+.col-book { max-height: min(calc(100vh - 24px), var(--bars-h, 100vh)); }
 /* Spellbook stays next to the screen so you can drag without scrolling; the editors move below. */
 @media (max-width: 1499px) {
   .app { grid-template-columns: 270px minmax(0, 1fr); }
@@ -1367,6 +1369,15 @@ restore();
 if (!CLASS_NAME[app.cls]) app.cls = "SHAMAN";
 if (!app.plans.length) addPlan(examplePlan());
 render();
+
+// Keep the spellbook as tall as the toolbar plus the bars screen.
+const screenCol = document.querySelector(".col-screen");
+const barsHeight = new ResizeObserver(() => {
+  const h = $("screen").getBoundingClientRect().bottom - screenCol.getBoundingClientRect().top;
+  document.querySelector(".col-book").style.setProperty("--bars-h", Math.round(h) + "px");
+});
+barsHeight.observe($("screen"));
+barsHeight.observe(screenCol);
 </script>
 </body>
 </html>

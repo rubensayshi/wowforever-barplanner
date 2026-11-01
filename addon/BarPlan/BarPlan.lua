@@ -709,9 +709,10 @@ local function queueAutoFill()
 end
 
 local events = CreateFrame("Frame")
--- Not every client has every event (Classic Era has no LEARNED_SPELL_IN_TAB),
+-- Not every client has every event (Classic Era has no LEARNED_SPELL_IN_TAB;
+-- newer clients call it LEARNED_SPELL_IN_SKILL_LINE),
 -- and registering an unknown one is an error that would stop the file here.
-for _, ev in ipairs({ "ADDON_LOADED", "SPELLS_CHANGED", "LEARNED_SPELL_IN_TAB", "PLAYER_REGEN_ENABLED" }) do
+for _, ev in ipairs({ "ADDON_LOADED", "SPELLS_CHANGED", "LEARNED_SPELL_IN_TAB", "LEARNED_SPELL_IN_SKILL_LINE", "PLAYER_REGEN_ENABLED" }) do
     pcall(events.RegisterEvent, events, ev)
 end
 events:SetScript("OnEvent", function(_, event, arg1)

@@ -65,6 +65,8 @@ local function allCommands()
             for i = 1, 12 do list[#list + 1] = p.bind .. i end
         end
     end
+    for i = 1, 10 do list[#list + 1] = "SHAPESHIFTBUTTON" .. i end -- stance bar
+    for i = 1, 10 do list[#list + 1] = "BONUSACTIONBUTTON" .. i end -- pet bar
     for _, c in ipairs(OTHER_COMMANDS) do list[#list + 1] = c end
     return list
 end
@@ -74,6 +76,7 @@ end
 -- fields separated by tabs. Backslash, tab and newline inside a field
 -- are written as \\, \t and \n.
 --   BARPLAN <version>
+--   CLASS   <WARRIOR, SHAMAN, ...> (optional; Apply refuses a plan for another class)
 --   NAME    <plan name>
 --   MACRO   <name> <icon> <0|1 per character> <body>
 --   SLOT    <slot> <spell|macro|item|clear> <value>
@@ -160,6 +163,8 @@ function BP.parse(text)
         local kind = f[1]
         if kind == "BARPLAN" then
             version = tonumber(f[2])
+        elseif kind == "CLASS" then
+            plan.class = f[2]
         elseif kind == "NAME" then
             plan.name = unesc(f[2])
         elseif kind == "MACRO" and f[2] and f[2] ~= "" then
@@ -183,6 +188,7 @@ end
 
 function BP.serialize(plan)
     local lines = { "BARPLAN\t" .. FORMAT_VERSION }
+    if plan.class then lines[#lines + 1] = "CLASS\t" .. plan.class end
     if plan.name and plan.name ~= "" then lines[#lines + 1] = "NAME\t" .. esc(plan.name) end
     for _, m in ipairs(plan.macros or {}) do
         lines[#lines + 1] = table.concat({ "MACRO", esc(m.name), esc(m.icon), m.perChar and "1" or "0", esc(m.body) }, "\t")
@@ -499,7 +505,8 @@ end
 ------------------------------------------------------------------------
 
 function BP.exportCurrent()
-    local plan = { name = (UnitName("player") or "?") .. " (from game)", macros = {}, slots = {}, binds = {} }
+    local _, class = UnitClass("player")
+    local plan = { name = (UnitName("player") or "?") .. " (from game)", class = class, macros = {}, slots = {}, binds = {} }
     local book = spellbookEntries()
     local seenMacro = {}
     local maxAccount = MAX_ACCOUNT_MACROS or 120
@@ -564,6 +571,12 @@ function BP.run(text, dry)
     local plan, err = BP.parse(text)
     if not plan then
         showStatus({ err })
+        return
+    end
+    local _, myClass = UnitClass("player")
+    if plan.class and myClass and plan.class ~= myClass then
+        showStatus({ ("This plan is for a %s and this character is a %s. Switch class in the planner and copy that plan.")
+            :format(plan.class:lower(), myClass:lower()) })
         return
     end
     local r = BP.apply(plan, dry)
@@ -674,7 +687,8 @@ local function autoFill()
     if not (BarPlanDB and BarPlanDB.auto and BarPlanDB.last) then return end
     if InCombatLockdown() then autoAfterCombat = true return end
     local plan = BP.parse(BarPlanDB.last)
-    if not plan then return end
+    local _, myClass = UnitClass("player")
+    if not plan or (plan.class and plan.class ~= myClass) then return end
     local book
     for _, s in ipairs(plan.slots) do
         if s.kind == "spell" and not HasAction(s.slot) then

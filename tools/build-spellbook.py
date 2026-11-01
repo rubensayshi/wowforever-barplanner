@@ -1,261 +1,262 @@
-"""Build the spellbook data in index.html.
+"""Build the spellbook data in index.html from WoW Forever's own data.
 
-Spell lists per class and level come from the What's Training addon
-(fusionpit/WhatsTraining, Classes/Vanilla). Names and icons come from
-Wowhead's Classic tooltip API. Talents, stances, racials and professions
-are listed by hand below and checked against the names Wowhead returns.
-This is vanilla Classic data: Forever's class changes are not in it.
+Sources:
+- wowforevertalents.com, which reads the Forever client (build 1.60.1.70707) and the
+  server's hotfixes: the trainer spells per class with each rank's level (/abilities/<class>/),
+  the talent trees (/<class>/) and the racials (/racials/). Spells the trainer no longer
+  teaches and passives are left out, the way the site marks them.
+- The Forever client's tables via wago.tools (SpellName, Spell, SpellMisc, SkillLineAbility,
+  Talent, TalentTab): spell IDs for each rank (for Wowhead tooltips) and which talents are passive.
 
-Run: python3 -I tools/build-spellbook.py index.html [cache.json]
-The cache keeps tooltip lookups between runs.
+Run: python3 -I tools/build-spellbook.py index.html [cache-dir]
+The cache dir keeps the downloaded pages and tables; delete it to fetch fresh data.
 """
-import concurrent.futures
+import collections
+import csv
+import html as htmllib
+import io
 import json
 import pathlib
 import re
 import sys
+import time
 import urllib.request
 
-WT = "https://raw.githubusercontent.com/fusionpit/WhatsTraining/master/Classes/Vanilla/{}.lua"
-TOOLTIP = "https://nether.wowhead.com/classic/tooltip/{}/{}"
-CLASSES = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"]
+SITE = "https://wowforevertalents.com"
+BUILD = "1.60.1.70707"
+WAGO = "https://wago.tools/db2/{}/csv?build=" + BUILD
+USER_AGENT = "barplanner-build/1.0 (+https://github.com/rubensayshi/wowforever-barplanner)"
 
-# Active talent abilities (rank 1). Later ranks come from the trainer data.
-TALENTS = {
-    "WARRIOR": {"Sweeping Strikes": 12292, "Mortal Strike": 12294, "Piercing Howl": 12323, "Death Wish": 12328,
-                "Bloodthirst": 23881, "Last Stand": 12975, "Concussion Blow": 12809, "Shield Slam": 23922},
-    "PALADIN": {"Divine Favor": 20216, "Holy Shock": 20473, "Blessing of Kings": 20217, "Seal of Command": 20375,
-                "Repentance": 20066, "Blessing of Sanctuary": 20911, "Holy Shield": 20925, "Consecration": 26573},
-    "HUNTER": {"Aimed Shot": 19434, "Scatter Shot": 19503, "Trueshot Aura": 19506, "Intimidation": 19577,
-               "Bestial Wrath": 19574, "Counterattack": 19306, "Deterrence": 19263, "Wyvern Sting": 19386},
-    "ROGUE": {"Ghostly Strike": 14278, "Riposte": 14251, "Blade Flurry": 13877, "Adrenaline Rush": 13750,
-              "Cold Blood": 14177, "Preparation": 14185, "Premeditation": 14183, "Hemorrhage": 16511},
-    "PRIEST": {"Inner Focus": 14751, "Power Infusion": 10060, "Holy Nova": 15237, "Lightwell": 724,
-               "Mind Flay": 15407, "Silence": 15487, "Vampiric Embrace": 15286, "Shadowform": 15473,
-               "Divine Spirit": 14752},
-    "SHAMAN": {"Elemental Mastery": 16166, "Nature's Swiftness": 16188, "Mana Tide Totem": 16190, "Stormstrike": 17364},
-    "MAGE": {"Presence of Mind": 12043, "Arcane Power": 12042, "Pyroblast": 11366, "Blast Wave": 11113,
-             "Combustion": 11129, "Cold Snap": 12472, "Ice Block": 11958, "Ice Barrier": 11426},
-    "WARLOCK": {"Amplify Curse": 18288, "Curse of Exhaustion": 18223, "Siphon Life": 18265, "Dark Pact": 18220,
-                "Fel Domination": 18708, "Demonic Sacrifice": 18788, "Soul Link": 19028, "Shadowburn": 17877,
-                "Conflagrate": 17962},
-    "DRUID": {"Insect Swarm": 5570, "Nature's Grasp": 16689, "Moonkin Form": 24858, "Feral Charge": 16979,
-              "Faerie Fire (Feral)": 16857, "Nature's Swiftness": 17116, "Swiftmend": 18562},
-}
+CLASSES = ["WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID"]
+CLASS_ID = {"WARRIOR": 1, "PALADIN": 2, "HUNTER": 3, "ROGUE": 4, "PRIEST": 5, "SHAMAN": 7, "MAGE": 8, "WARLOCK": 9, "DRUID": 11}
+CLASS_BIT = {c: 1 << (i - 1) for c, i in CLASS_ID.items()}
+RACES = ["Human", "Dwarf", "Night Elf", "Gnome", "Orc", "Undead", "Tauren", "Troll", "Skyborne"]
+# Bits in the client's 64-bit race masks (ChrRaces.PlayableRaceBit). Skyborne are two races, one per faction.
+RACE_BITS = {"Human": [0], "Orc": [1], "Dwarf": [2], "Night Elf": [3], "Undead": [4], "Tauren": [5], "Gnome": [6], "Troll": [7],
+             "Skyborne": [32, 33]}
+ALL_RACES = (1 << 64) - 1
+# Skyborne mages are always High Order (Alliance), Skyborne shamans always Windshaper (Horde).
+SKYBORNE_BITS = {"MAGE": [32], "SHAMAN": [33]}
+# Race sections on /racials/; both Skyborne factions are one race in the planner.
+RACIAL_HEADINGS = {r: r for r in RACES} | {"High Order Skyborne": "Skyborne", "Windshaper Skyborne": "Skyborne"}
+# Racials without a cooldown that still go on a bar.
+RACIAL_TOGGLES = {"Find Treasure"}
 
 # Stance bar per class, in stance bar order. page = first slot of the main bar while in it (None = no own page).
 STANCES = {
-    "WARRIOR": [("Battle Stance", 2457, 73), ("Defensive Stance", 71, 85), ("Berserker Stance", 2458, 97)],
-    "DRUID": [("Bear Form", 5487, 97), ("Aquatic Form", 1066, None), ("Cat Form", 768, 73),
-              ("Travel Form", 783, None), ("Moonkin Form", 24858, 109)],
-    "ROGUE": [("Stealth", 1784, 73)],
-    "PRIEST": [("Shadowform", 15473, 73)],
+    "WARRIOR": [("Battle Stance", 73), ("Defensive Stance", 85), ("Berserker Stance", 97)],
+    "DRUID": [("Bear Form", 97), ("Aquatic Form", None), ("Cat Form", 73), ("Travel Form", None), ("Moonkin Form", 109)],
+    "ROGUE": [("Stealth", 73)],
+    "PRIEST": [("Shadowform", 73)],
 }
 
-# Passives and pet training that What's Training lists but can't go on a bar.
-SKIP = {"Reincarnation", "Mail", "Plate Mail", "Parry", "Dual Wield", "Great Stamina", "Natural Armor",
-        "Arcane Resistance", "Fire Resistance", "Frost Resistance", "Nature Resistance", "Shadow Resistance",
-        "Growl", "Feline Grace", "Detect Traps"}
-
-# Spells learned from class quests or with another spell, missing from the trainer lists: name -> (id, level)
-EXTRA = {
-    "HUNTER": {"Auto Shot": (75, 1), "Call Pet": (883, 10), "Dismiss Pet": (2641, 10), "Revive Pet": (982, 10),
-               "Feed Pet": (6991, 10)},
-    "WARLOCK": {"Summon Imp": (688, 1), "Summon Voidwalker": (697, 10), "Summon Succubus": (712, 20),
-                "Summon Felhunter": (691, 30), "Summon Felsteed": (5784, 40), "Inferno": (1122, 50),
-                "Summon Dreadsteed": (23161, 60)},
-    "PALADIN": {"Summon Warhorse": (13819, 40), "Summon Charger": (23214, 60)},
-}
-
-# Level of rank 1 where the trainer data gets it wrong (quest-learned spells): name -> level
-LEVELS = {
-    "WARRIOR": {"Defensive Stance": 10, "Berserker Stance": 30, "Intercept": 30, "Sunder Armor": 10},
-    "SHAMAN": {"Stoneskin Totem": 4, "Searing Totem": 10, "Healing Stream Totem": 20},
-    "DRUID": {"Bear Form": 10, "Maul": 10, "Aquatic Form": 16},
-    "HUNTER": {"Tame Beast": 10},
-    "PALADIN": {"Blessing of Might": 4, "Blessing of Wisdom": 14},
-    "ROGUE": {"Instant Poison": 20, "Deadly Poison V": 60},
-}
-
-# Wowhead race ids used by What's Training: 1 Human, 2 Orc, 3 Dwarf, 4 Night Elf, 5 Undead, 6 Tauren, 7 Gnome, 8 Troll
-RACE_NAMES = {1: "Human", 2: "Orc", 3: "Dwarf", 4: "Night Elf", 5: "Undead", 6: "Tauren", 7: "Gnome", 8: "Troll"}
-GENERAL = [  # (name, id, races or None, classes or None)
-    ("Attack", 6603, None, None),
-    ("Shoot", 5019, None, ["PRIEST", "MAGE", "WARLOCK"]),
-    ("Throw", 2764, None, ["WARRIOR", "ROGUE", "HUNTER"]),
-    ("Shoot Bow", 2480, None, ["WARRIOR", "ROGUE"]), ("Shoot Gun", 7918, None, ["WARRIOR", "ROGUE"]),
-    ("Shoot Crossbow", 7919, None, ["WARRIOR", "ROGUE"]),
-    ("Stoneform", 20594, ["Dwarf"], None), ("Find Treasure", 2481, ["Dwarf"], None),
-    ("Escape Artist", 20589, ["Gnome"], None), ("Perception", 20600, ["Human"], None),
-    ("Shadowmeld", 20580, ["Night Elf"], None), ("Blood Fury", 20572, ["Orc"], None),
-    ("War Stomp", 20549, ["Tauren"], None), ("Berserking", 20554, ["Troll"], None),
-    ("Will of the Forsaken", 7744, ["Undead"], None), ("Cannibalize", 20577, ["Undead"], None),
-    ("First Aid", 3273, None, None), ("Cooking", 2550, None, None), ("Fishing", 7620, None, None),
-    ("Find Minerals", 2580, None, None), ("Find Herbs", 2383, None, None), ("Smelting", 2656, None, None),
-    ("Disenchant", 13262, None, None), ("Basic Campfire", 818, None, None),
+# Spells every class has, and professions. (name, classes or None)
+GENERAL = [
+    ("Attack", None), ("Shoot", ["PRIEST", "MAGE", "WARLOCK"]), ("Throw", ["WARRIOR", "ROGUE", "HUNTER"]),
+    ("Shoot Bow", ["WARRIOR", "ROGUE"]), ("Shoot Gun", ["WARRIOR", "ROGUE"]), ("Shoot Crossbow", ["WARRIOR", "ROGUE"]),
+    ("First Aid", None), ("Cooking", None), ("Fishing", None), ("Find Minerals", None), ("Find Herbs", None),
+    ("Smelting", None), ("Disenchant", None), ("Basic Campfire", None),
 ]
-ITEMS = [("Hearthstone", 6948)]
-# Wowhead shows a placeholder icon for these; use what the game shows instead.
-ICON_OVERRIDE = {"Attack": "inv_sword_04"}
-
-TOKENS = re.compile(
-    r"\[(?P<level>\d+)\]\s*=|\bid\s*=\s*(?P<id>\d+)|\braces?\s*=\s*(?P<races>\{[^}]*\}|\d+)"
-    r"|local\s+(?P<arr>\w+)\s*=\s*\{(?P<arrbody>[^}]*)\}|requiredIds\s*=\s*(?P<req>\{[^}]*\}|\w+)")
-
-
-def get(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (barplanner build script)"})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return r.read().decode("utf-8")
+GENERAL_ICONS = {"Attack": "inv_sword_04", "Shoot": "ability_shootwand", "Throw": "ability_throw", "Shoot Bow": "ability_marksmanship",
+                 "Shoot Gun": "inv_weapon_rifle_01", "Shoot Crossbow": "inv_weapon_crossbow_01", "First Aid": "spell_holy_sealofsacrifice",
+                 "Cooking": "inv_misc_food_15", "Fishing": "trade_fishing", "Find Minerals": "spell_nature_earthquake",
+                 "Find Herbs": "inv_misc_flower_02", "Smelting": "spell_fire_flameblades", "Disenchant": "inv_enchant_disenchant",
+                 "Basic Campfire": "spell_fire_fire"}
+ITEMS = [("Hearthstone", 6948, "inv_misc_rune_01")]
 
 
-def parse_class(text):
-    """Returns (entries, rank arrays, required ids). entry = {id, level, races}."""
-    entries, arrays, required = [], [], set()
-    level = None
-    for m in TOKENS.finditer(text):
-        if m["level"]:
-            level = int(m["level"])
-        elif m["id"]:
-            entries.append({"id": int(m["id"]), "level": level, "races": None})
-        elif m["races"] and entries:
-            entries[-1]["races"] = [int(x) for x in re.findall(r"\d+", m["races"])]
-        elif m["arr"]:
-            ids = [int(x) for x in re.findall(r"\b\d{2,}\b", re.sub(r"--\[\[.*?\]\]", "", m["arrbody"]))]
-            if ids:
-                arrays.append(ids)
-        elif m["req"]:
-            required.update(int(x) for x in re.findall(r"\d+", m["req"]))
-    return entries, arrays, required
+def fetch(url, cache, name):
+    path = cache / name
+    if not path.exists():
+        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(req, timeout=120) as r:
+            path.write_bytes(r.read())
+        time.sleep(1)
+    return path.read_text(encoding="utf-8")
 
 
-def tooltips(keys, cache):
-    todo = [k for k in keys if k not in cache]
-
-    def fetch(k):
-        kind, num = k.split(":")
-        try:
-            d = json.loads(get(TOOLTIP.format(kind, num)))
-            return k, {"name": d.get("name"), "icon": d.get("icon"), "passive": ">Passive<" in (d.get("tooltip") or "")}
-        except Exception as e:  # noqa: BLE001 - report and skip
-            print("tooltip failed", k, e, file=sys.stderr)
-            return k, None
-
-    with concurrent.futures.ThreadPoolExecutor(8) as pool:
-        for k, v in pool.map(fetch, todo):
-            if v:
-                cache[k] = v
-    return cache
+def table(name, cache):
+    return list(csv.DictReader(io.StringIO(fetch(WAGO.format(name), cache, name + ".csv"))))
 
 
-def main(html_path, cache_path=None):
-    cache_file = pathlib.Path(cache_path) if cache_path else None
-    cache = json.loads(cache_file.read_text()) if cache_file and cache_file.exists() else {}
+def clean(h):
+    return re.sub(r" data-astro-cid-\w+", "", h)
 
-    parsed = {}
-    for cls in CLASSES:
-        parsed[cls.upper()] = parse_class(get(WT.format(cls)))
 
-    keys = {f"spell:{e['id']}" for es, arrs, req in parsed.values() for e in es}
-    keys |= {f"spell:{i}" for es, arrs, req in parsed.values() for a in arrs for i in a}
-    keys |= {f"spell:{i}" for es, arrs, req in parsed.values() for i in req}
-    keys |= {f"spell:{i}" for t in TALENTS.values() for i in t.values()}
-    keys |= {f"spell:{s[1]}" for st in STANCES.values() for s in st}
-    keys |= {f"spell:{v[0]}" for ex in EXTRA.values() for v in ex.values()}
-    keys |= {f"spell:{g[1]}" for g in GENERAL}
-    keys |= {f"item:{i[1]}" for i in ITEMS}
-    tooltips(sorted(keys), cache)
-    if cache_file:
-        cache_file.write_text(json.dumps(cache, indent=0, sort_keys=True))
+def abilities(h):
+    """Trainer spells on an /abilities/<class>/ page: (status, data, icon)."""
+    pat = (r'<li class="cell status-(\w+)"[^>]*>\s*<button type="button" class="cell-btn"[^>]*data-tip="([^"]*)"[^>]*>'
+           r'\s*<img src="[^"]*/icons/\w+/([^".]+)\.jpg"')
+    return [(st, json.loads(htmllib.unescape(t)), icon) for st, t, icon in re.findall(pat, clean(h))]
 
-    def tip(kind, i):
-        return cache.get(f"{kind}:{i}")
 
-    def check(name, i, kind="spell"):
-        t = tip(kind, i)
-        if not t or t["name"] != name:
-            print(f"name mismatch {kind} {i}: expected {name!r}, Wowhead has {t and t['name']!r}", file=sys.stderr)
-            return None
-        return t
+def text(h):
+    return re.sub(r"\s+", " ", htmllib.unescape(re.sub(r"<[^>]+>", " ", h))).strip()
+
+
+def talents(h):
+    """Talents in the reference list on a /<class>/ page: (name, icon, points needed, cost line or None, text).
+    Active talents have a cost line (mana, cast time, cooldown); passives don't."""
+    out = []
+    for b in re.findall(r'<li class="tref[^"]*"[^>]*>(.*?)</li>', clean(h), flags=re.S):
+        name = re.search(r'<h4>\s*<a [^>]*>([^<]+)</a>', b)
+        icon = re.search(r'/icons/\w+/([^".]+)\.jpg', b)
+        points = re.search(r'<span class="tag">(\d+) points?</span>', b)
+        cost = re.search(r'<p class="tref-cost">(.*?)</p>', b, flags=re.S)
+        rank = re.findall(r'<p class="tref-rank">(.*?)</p>', b, flags=re.S)
+        if name and icon:
+            out.append((htmllib.unescape(name.group(1)).strip(), icon.group(1), int(points.group(1)) if points else 0,
+                        text(cost.group(1)) if cost else None, text(re.sub(r'<span class="tref-rank-n">.*?</span>', "", rank[-1])) if rank else ""))
+    return out
+
+
+def racials(h):
+    """Active racials per race on /racials/: {race: [(name, icon, cooldown line, text)]}. Passives have no cooldown."""
+    parts = re.split(r"<h([1-4])[^>]*>([^<]{2,40})</h\1>", clean(h))
+    out = {}
+    for i in range(1, len(parts) - 2, 3):
+        race = RACIAL_HEADINGS.get(parts[i + 1].strip())
+        if not race:
+            continue
+        for a in re.findall(r'<li class="ability">(.*?)</li>', parts[i + 2], flags=re.S):
+            name = htmllib.unescape(re.search(r'<div class="ability-name">\s*([^<]+?)\s*<', a).group(1))
+            icon = re.search(r'/icons/\w+/([^".]+)\.jpg', a).group(1)
+            meta = re.search(r'<div class="ability-meta">([^<]*)</div>', a)
+            desc = re.search(r'<div class="ability-text">(.*?)</div>', a, flags=re.S)
+            if meta or name in RACIAL_TOGGLES:
+                out.setdefault(race, []).append((name, icon, text(meta.group(1)) if meta else "", text(desc.group(1)) if desc else ""))
+    return out
+
+
+def main(html_path, cache_dir=".spellbook-cache"):
+    cache = pathlib.Path(cache_dir)
+    cache.mkdir(exist_ok=True)
+
+    names = {int(r["ID"]): r["Name_lang"] for r in table("SpellName", cache)}
+    subtext = {int(r["ID"]): r["NameSubtext_lang"] for r in table("Spell", cache)}
+    passive = {int(r["SpellID"]): bool(int(r["Attributes_0"]) & 0x40) for r in table("SpellMisc", cache)}
+    class_mask = collections.defaultdict(int)
+    race_mask = collections.defaultdict(int)  # spell -> races that learn it (all rows together); 0 or all bits = everyone
+    for r in table("SkillLineAbility", cache):
+        i = int(r["Spell"])
+        class_mask[i] |= int(r["ClassMask"]) or 0
+        m = (int(r["RaceMasks_0"] or 0) & 0xFFFFFFFF) | ((int(r["RaceMasks_1"] or 0) & 0xFFFFFFFF) << 32)
+        race_mask[i] |= m or ALL_RACES
+    taught = set(class_mask)
+    tab_class = {int(r["ID"]): int(r["ClassMask"]) for r in table("TalentTab", cache)}
+    talent_rows = collections.defaultdict(dict)  # class bit -> name -> [rank spell ids]; Talent.ClassID is empty, the tree has the class
+    for r in table("Talent", cache):
+        ranks = [int(r[f"SpellRank_{i}"]) for i in range(9) if int(r[f"SpellRank_{i}"] or 0)]
+        if ranks:
+            talent_rows[tab_class.get(int(r["TabID"]), 0)][names.get(ranks[0], "")] = ranks
+    by_name = collections.defaultdict(list)
+    for i, n in names.items():
+        by_name[n].append(i)
+
+    def spell_id(name, rank, cls=None, single=False, race=None):
+        """The client spell ID for a spell name and rank label ('Rank 3' or ''). With race: the one that race learns."""
+        ids = by_name.get(name, [])
+        want = [i for i in ids if subtext.get(i, "") == rank] or (list(ids) if single else [])  # racials say "Racial", not a rank
+        if race:
+            bits = sum(1 << b for b in RACE_BITS[race])
+            mine = [i for i in want if race_mask.get(i, 0) & bits and race_mask.get(i) != ALL_RACES]
+            want = mine or want
+        if cls:
+            mine = [i for i in want if class_mask.get(i, 0) & CLASS_BIT[cls]]
+            want = mine or [i for i in want if i in taught] or want
+        else:
+            want = [i for i in want if i in taught] or want
+        return min(want) if want else 0
 
     data = {"classes": {}, "general": [], "items": [], "stances": {}}
-    for cls, (entries, arrays, required) in parsed.items():
-        talents = {n: i for n, i in TALENTS[cls].items() if check(n, i)}
-        talent_ids = set(talents.values())
-        level_of = {}
-        races_of = {}
-        for e in entries:
-            if e["id"] not in level_of or (e["level"] or 99) < (level_of[e["id"]] or 99):
-                level_of[e["id"]] = e["level"]
-            if e["races"]:
-                races_of[e["id"]] = [RACE_NAMES[r] for r in e["races"] if r in RACE_NAMES]
-        ids = set(level_of) | set(required) | {i for a in arrays for i in a} | talent_ids
-        ids |= {s[1] for s in STANCES.get(cls, [])}
-        for name, (i, lvl) in EXTRA.get(cls, {}).items():
-            if check(name, i):
-                ids.add(i)
-                level_of[i] = lvl
-        by_name = {}
-        for i in ids:
-            t = tip("spell", i)
-            if not t or t["passive"] or not t["name"] or t["name"] in SKIP:
+    missing = []
+    for cls in CLASSES:
+        spells, seen = [], set()
+        for status, d, icon in abilities(fetch(f"{SITE}/abilities/{cls.lower()}/", cache, f"abilities-{cls.lower()}.html")):
+            if status == "removed" or d["p"] or d["n"] in seen:
                 continue
-            by_name.setdefault(t["name"], {"icon": t["icon"], "ids": set()})["ids"].add(i)
-        spells = []
-        for name, info in by_name.items():
-            talent = name in talents
-            # rank order: a rank array from the file if one covers these ids, else by level
-            order = next((a for a in arrays if info["ids"] & set(a)), None)
-            if order:
-                ranked = [i for i in order if i in info["ids"]] + sorted(info["ids"] - set(order))
-            else:
-                ranked = sorted(info["ids"], key=lambda i: (level_of.get(i) or (0 if i not in talent_ids else -1), i))
-            ranks = []
-            for i in ranked:
-                lvl = level_of.get(i)
-                if lvl is None:
-                    lvl = 0 if (talent and i == talents[name]) else 1  # 0 = from a talent
-                ranks.append([i, lvl])
-            if talent and ranks[0][0] != talents[name]:
-                ranks.sort(key=lambda r: (r[0] != talents[name], r[1]))
-            if name in LEVELS.get(cls, {}):
-                ranks[0][1] = LEVELS[cls][name]
-            item = {"n": name, "i": info["icon"], "r": ranks}
-            if talent:
+            seen.add(d["n"])
+            ranks, texts = [], []
+            if d.get("tr"):  # rank 1 comes from a talent, later ranks from the trainer
+                tr = d["tr"]
+                ranks.append([spell_id(d["n"], tr["r"], cls), tr["l"], 1])
+                texts.append([tr.get("m", ""), tr.get("d", "")])
+            for k in d["k"]:
+                ranks.append([spell_id(d["n"], k["r"], cls, single=len(d["k"]) == 1), k["l"]])
+                texts.append([k.get("m", ""), k.get("d", "")])
+            missing += [f"{cls} {d['n']} {r[1]}" for r in ranks if not r[0]]
+            item = {"n": d["n"], "i": icon, "r": ranks}
+            # Ranks the client tables don't have (renamed or newer): no Wowhead tooltip, so keep the site's text.
+            tt = {str(j): texts[j] for j, r in enumerate(ranks) if not r[0]}
+            if tt:
+                item["tt"] = tt
+            mask = 0
+            for r in ranks:
+                mask |= race_mask.get(r[0], ALL_RACES)
+            bits_for = dict(RACE_BITS, Skyborne=SKYBORNE_BITS.get(cls, RACE_BITS["Skyborne"]))
+            races = [n for n, bits in bits_for.items() if any(mask >> b & 1 for b in bits)]
+            if races and len(races) < len(RACE_BITS):
+                item["race"] = sorted(races, key=RACES.index)
+            if d.get("tr"):
                 item["t"] = 1
-            races = {r for i in info["ids"] for r in races_of.get(i, [])}
-            if races and all(i in races_of for i in info["ids"]):
-                item["race"] = sorted(races)
+            if status == "new":
+                item["new"] = 1
             spells.append(item)
+
+        # Active talents that the trainer doesn't teach (Elemental Mastery, Moonkin Form, ...).
+        rows = talent_rows[CLASS_BIT[cls]]
+        for n, icon, points, cost, desc in talents(fetch(f"{SITE}/{cls.lower()}/", cache, f"talents-{cls.lower()}.html")):
+            if n in seen or not cost:  # already listed with its trainer ranks, or passive
+                continue
+            seen.add(n)
+            lvl = 10 + points
+            ids = rows.get(n) or [spell_id(n, "", cls, single=True)]
+            item = {"n": n, "i": icon, "r": [[i, lvl, 1] for i in ids], "t": 1}
+            if not ids[0]:  # newer than the client tables: no Wowhead tooltip, so keep the site's text
+                item["tt"] = {"0": [cost, desc]}
+                missing.append(f"{cls} talent {n} (tooltip from wowforevertalents.com)")
+            spells.append(item)
+
         spells.sort(key=lambda s: (s.get("t", 0), s["r"][0][1], s["n"]))
         data["classes"][cls] = spells
         if cls in STANCES:
-            data["stances"][cls] = [{"n": n, "i": tip("spell", i)["icon"], "page": p} for n, i, p in STANCES[cls] if check(n, i)]
+            icons = {s["n"]: s["i"] for s in spells}
+            data["stances"][cls] = [{"n": n, "i": icons[n], "page": p} for n, p in STANCES[cls] if n in icons]
+            for n, _ in STANCES[cls]:
+                if n not in icons:
+                    print(f"{cls}: stance {n} isn't in the Forever spell list", file=sys.stderr)
 
-    for name, i, races, classes in GENERAL:
-        t = check(name, i)
-        if t:
-            g = {"n": name, "i": ICON_OVERRIDE.get(name, t["icon"])}
-            if races:
-                g["race"] = races
-            if classes:
-                g["cls"] = classes
-            data["general"].append(g)
-    for name, i in ITEMS:
-        t = check(name, i, "item")
-        if t:
-            data["items"].append({"n": name, "i": t["icon"], "id": i})
+    for name, classes in GENERAL:
+        g = {"n": name, "i": GENERAL_ICONS[name], "id": spell_id(name, "", single=True)}
+        if classes:
+            g["cls"] = classes
+        data["general"].append(g)
+    racial = {}
+    for race, abil in racials(fetch(f"{SITE}/racials/", cache, "racials.html")).items():
+        for n, icon, meta, desc in abil:
+            g = racial.setdefault(n, {"n": n, "i": icon, "id": spell_id(n, "Racial", single=True, race=race), "race": []})
+            if race not in g["race"]:
+                g["race"].append(race)
+            if not g["id"]:
+                g["tt"] = [meta, desc]
+    for g in sorted(racial.values(), key=lambda g: (RACES.index(g["race"][0]), g["n"])):
+        data["general"].append(g)
+    for name, i, icon in ITEMS:
+        data["items"].append({"n": name, "i": icon, "id": i})
 
     html_path = pathlib.Path(html_path)
-    html = html_path.read_text(encoding="utf-8")
+    page = html_path.read_text(encoding="utf-8")
     start, end = "/* spellbook-data:start */", "/* spellbook-data:end */"
     block = f"{start}\nconst SPELLBOOK = {json.dumps(data, separators=(',', ':'))};\n{end}"
-    if start not in html:
+    if start not in page:
         sys.exit("spellbook-data markers not found in " + str(html_path))
-    html = re.sub(re.escape(start) + ".*?" + re.escape(end), lambda _: block, html, flags=re.S)
-    html_path.write_text(html, encoding="utf-8")
+    page = re.sub(re.escape(start) + ".*?" + re.escape(end), lambda _: block, page, flags=re.S)
+    html_path.write_text(page, encoding="utf-8")
     for cls, spells in data["classes"].items():
-        print(f"{cls:8} {len(spells):3} spells, {sum(1 for s in spells if s.get('t'))} talents")
+        print(f"{cls:8} {len(spells):3} spells, {sum(1 for s in spells if s.get('t'))} talents, {sum(1 for s in spells if s.get('new'))} new")
+    print(f"general: {len(data['general'])} ({sum(1 for g in data['general'] if g.get('race'))} racials)")
+    for m in missing:
+        print("no spell ID:", m, file=sys.stderr)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ Set up your WoW Forever action bars, macros and keybinds in the browser, then lo
 **Page:** https://rubensayshi.github.io/wowforever-barplanner/
 
 - An in-game-looking screen: main bar with bars 2, 3 and 6–8 stacked on top, bars 4 and 5 on the right edge, stance bar and pet bar above.
-- Pick a class and race (only the combos Forever allows), then drag spells from that class's spellbook. A level slider greys out spells you won't have yet.
+- Pick a class and race (only the combos Forever allows), then drag spells from that class's Forever spellbook: trainer spells, active talents and racials, with spells new in Forever marked ★. A level slider greys out spells you won't have yet.
 - Write macros, plan the main bar once per stance or form and on its page 2 (Shift+2), and bind keys in keybind mode (hover a button, press a key).
 - Keep as many plans per class as you like. They're saved in your browser; the plan string moves them anywhere else.
 - Works with EllesmereUI, which uses the game's normal bar slots and keybinds.
@@ -26,7 +26,7 @@ The addon refuses a plan made for a different class. It hasn't been tested in th
 | [index.html](index.html) | The planner, with the spellbook data embedded. Plans are saved in your browser. |
 | [backdrops/](backdrops) | One screenshot per race (its starting zone) for the screen's backdrop, 1440x900 WebP. |
 | [addon/BarPlan](addon/BarPlan) | The in-game importer (`/barplan`). |
-| [tools/build-spellbook.py](tools/build-spellbook.py) | Rebuilds the spellbook data in index.html: `python3 -I tools/build-spellbook.py index.html [cache.json]` |
+| [tools/build-spellbook.py](tools/build-spellbook.py) | Rebuilds the spellbook data in index.html from Forever's data: `python3 -I tools/build-spellbook.py index.html [cache-dir]` |
 | [tools/fetch-backdrops.py](tools/fetch-backdrops.py) | Downloads the race backdrops from Warcraft Wiki and shrinks them: `python3 -I tools/fetch-backdrops.py backdrops` (needs Pillow) |
 | [.github/workflows/pages.yml](.github/workflows/pages.yml) | Publishes the page, the backdrops and BarPlan.zip on every push to `main`. |
 
@@ -54,7 +54,10 @@ Read 2026-11-01.
 - ForeverSVFix release notes (SavedVariables loading bug, EllesmereUI profiles): https://github.com/nobewayo/ForeverSVFix/releases
 - EUI Tweaks (lists game version 1.60.1): https://www.curseforge.com/wow/addons/eui-tweaks
 - Action slot numbers, including stance/form pages (slots 73–120, separate from bars 2–5): https://warcraft.wiki.gg/wiki/Action_slot (retail page; Classic uses the same pages for Warrior, Druid Cat/Bear, Rogue Stealth)
-- Spellbook data: trainer spells per class and level from What's Training (https://github.com/fusionpit/WhatsTraining, Classes/Vanilla), names and icons from Wowhead's Classic tooltip API (https://nether.wowhead.com/classic/tooltip/spell/<id>). Vanilla data, not Forever's class changes.
+- Spellbook data (read 2026-11-01), built by tools/build-spellbook.py:
+  - Trainer spells per class with each rank's level, active talents and racials: wowforevertalents.com (https://wowforevertalents.com/abilities/, /<class>/, /racials/), which reads the Forever client build 1.60.1.70707 and the server hotfixes of 30 October.
+  - Spell IDs per rank, passive flags and race limits (for example Desperate Prayer is Dwarf-only, Fear Ward is for every priest): the Forever client's tables for build 1.60.1.70707 via wago.tools (https://wago.tools/db2/SkillLineAbility?build=1.60.1.70707, plus SpellName, Spell, SpellMisc, Talent, TalentTab).
+  - Spells newer than the client tables (Oath of Light, the top rank of Lacerate) and renamed ranks have no ID, so their tooltip is the text from wowforevertalents.com.
 - Race backdrops, starting-zone screenshots from Warcraft Wiki (fetched 2026-11-01, file names in tools/fetch-backdrops.py): Human Northshire Abbey, Dwarf Kharanos, Gnome Gates of Ironforge, Night Elf Dolanaar, Orc Valley of Trials, Undead Tirisfal Glades, Tauren Camp Narache, Troll Durotar, Skyborne Dalaran (Zephras Isle has no screenshots on the wiki yet). Some are from later expansions, so they don't always look like the Classic client. https://warcraft.wiki.gg/images/<file>
 - Heading font: Marcellus (Google Fonts), standing in for the game's Friz Quadrata
 - Spell icons load from https://wow.zamimg.com/images/wow/icons/

@@ -257,7 +257,7 @@ ol.steps li, .howto ul li { margin-bottom: 5px; }
       </svg>
       <h1>Barsmith</h1>
     </div>
-    <p class="lede">Set up your bars like you would in game: drag spells from the spellbook onto your bars, write macros, then use keybind mode. Copy the plan string at the bottom into <code>/barplan</code> in game (BarPlan addon) to apply it. Works with EllesmereUI, Bartender4, Dominos and ElvUI. Your plans are saved in this browser, as many per class as you like.</p>
+    <p class="lede">Set up your bars like you would in game: drag spells from the spellbook onto your bars, write macros, then use keybind mode. Copy the plan string at the bottom into <code>/barsmith</code> in game (Barsmith addon) to apply it. Works with EllesmereUI, Bartender4, Dominos and ElvUI. Your plans are saved in this browser, as many per class as you like.</p>
   </div>
   <div class="who">
     <div class="row">
@@ -316,14 +316,14 @@ ol.steps li, .howto ul li { margin-bottom: 5px; }
 <div class="bottom">
   <section class="panel">
     <h2>Plan string</h2>
-    <p class="note" style="margin:0 0 8px">Copy this. In game: <code>/barplan</code>, paste with Ctrl+V, press <b>Check</b> to see what changes, then <b>Apply</b>.</p>
+    <p class="note" style="margin:0 0 8px">Copy this. In game: <code>/barsmith</code>, paste with Ctrl+V, press <b>Check</b> to see what changes, then <b>Apply</b>.</p>
     <textarea id="out" readonly spellcheck="false"></textarea>
     <div class="row" style="margin-top:8px"><button class="btn primary" id="copy">Copy plan string</button><span class="stats" id="stats"></span></div>
     <ul class="warnings" id="warnings"></ul>
   </section>
   <section class="panel">
     <h2>Load a plan</h2>
-    <p class="note" style="margin:0 0 8px">Paste a string from this page, or from <b>Export my bars</b> in <code>/barplan</code>. It's added as a new plan for its class.</p>
+    <p class="note" style="margin:0 0 8px">Paste a string from this page, or from <b>Export my bars</b> in <code>/barsmith</code>. It's added as a new plan for its class.</p>
     <textarea id="in" rows="3" spellcheck="false" placeholder="BP1:..."></textarea>
     <div class="row" style="margin-top:8px">
       <button class="btn primary" id="load">Load</button>
@@ -334,17 +334,17 @@ ol.steps li, .howto ul li { margin-bottom: 5px; }
   <section class="panel howto">
     <h2>How to use it</h2>
     <ol class="steps">
-      <li>Download <a href="BarPlan.zip">BarPlan.zip</a> and unzip it into the game's <code>Interface/AddOns</code> folder, so you get <code>Interface/AddOns/BarPlan</code>. Source: <a href="https://github.com/rubensayshi/wowforever-barplanner">github.com/rubensayshi/wowforever-barplanner</a>.</li>
+      <li>Download <a href="Barsmith.zip">Barsmith.zip</a> and unzip it into the game's <code>Interface/AddOns</code> folder, so you get <code>Interface/AddOns/Barsmith</code>. Source: <a href="https://github.com/rubensayshi/wowforever-barplanner">github.com/rubensayshi/wowforever-barplanner</a>.</li>
       <li>Plan here, per class. The level slider greys out spells you won't have yet.</li>
-      <li>In game, out of combat: <code>/barplan</code>, paste, <b>Check</b>, <b>Apply</b>. Spells you haven't learned are skipped.</li>
-      <li>Later spells go onto their planned button when you learn them (if it's empty). <code>/barplan apply</code> runs the plan again.</li>
+      <li>In game, out of combat: <code>/barsmith</code>, paste, <b>Check</b>, <b>Apply</b>. Spells you haven't learned are skipped.</li>
+      <li>Later spells go onto their planned button when you learn them (if it's empty). <code>/barsmith apply</code> runs the plan again.</li>
     </ol>
     <ul>
       <li>Bars 2 to 8 use their own action slots. The main bar has extra pages that only show in a stance or form (slots 73–120), so a warrior plans the main bar once per stance. The arrows next to Bar 1 switch to its page 2 (Shift+2 in game); pages 3 to 6 are the same buttons as bars 4, 5, 3 and 2.</li>
       <li>Apply only touches buttons and keys in the plan. A planned button ends up with exactly the key set here.</li>
       <li>Spells, talents and racials are Forever's, from <a href="https://wowforevertalents.com/">wowforevertalents.com</a> (read from the Forever client and its hotfixes). New ones have a ★. Tooltips come from Wowhead's Forever database. Any name typed in by hand works too.</li>
       <li>The idea comes from <a href="https://naowh.gg/forever/action-bars">Naowh's Forever action bar planner</a>, which only sets up bars for their own addon suite.</li>
-      <li>Turn on the bars you use in your bar addon's settings. Bartender4, Dominos and ElvUI number them by action page: Bar 2 here is their bar 6, Bar 3 is 5, Bar 4 is 3, Bar 5 is 4, and Bars 6–8 are 13–15 (Dominos: 12–14). Some of them also switch the main bar for Shadowform, Moonkin Form or Prowl; BarPlan copies the right buttons onto those pages too. The stance and pet bar contents come from the game; only their keys are planned.</li>
+      <li>Turn on the bars you use in your bar addon's settings. Bartender4, Dominos and ElvUI number them by action page: Bar 2 here is their bar 6, Bar 3 is 5, Bar 4 is 3, Bar 5 is 4, and Bars 6–8 are 13–15 (Dominos: 12–14). Some of them also switch the main bar for Shadowform, Moonkin Form or Prowl; the addon copies the right buttons onto those pages too. The stance and pet bar contents come from the game; only their keys are planned.</li>
     </ul>
   </section>
 </div>
@@ -363,7 +363,7 @@ const SPELLBOOK = {"classes":{"WARRIOR":[{"n":"Battle Shout","i":"ability_warrio
 "use strict";
 const D = SPELLBOOK;
 
-// ---- Bars, slots and binding commands. Keep in sync with addon/BarPlan/BarPlan.lua ----
+// ---- Bars, slots and binding commands. Keep in sync with addon/Barsmith/Barsmith.lua ----
 // first = first action slot, bind = binding command prefix. These are the slots and commands
 // EllesmereUI's bars use. Main-bar stance pages (73-120) share Bar 1's keys.
 const BARS = [
@@ -918,7 +918,7 @@ function renderOther() {
   $("macroList").innerHTML = P().macros.map((m) => `<option value="${esc(m.name)}">`).join("");
 }
 
-// ---- Plan string (same format as BarPlan.lua) ----
+// ---- Plan string (same format as Barsmith.lua) ----
 const escField = (s) => String(s ?? "").replace(/\\/g, "\\\\").replace(/\t/g, "\\t").replace(/\r/g, "").replace(/\n/g, "\\n");
 const unescField = (s) => String(s ?? "").replace(/\\(.)/g, (m, c) => (c === "n" ? "\n" : c === "t" ? "\t" : c === "\\" ? "\\" : m));
 function toB64(text) { let bin = ""; for (const b of new TextEncoder().encode(text)) bin += String.fromCharCode(b); return btoa(bin); }

@@ -1,5 +1,5 @@
--- BarPlan: applies a plan made in the bar planner page (index.html).
--- Paste the plan string into /barplan and press Apply. It
+-- Barsmith: applies a plan made on the Barsmith page (index.html).
+-- Paste the plan string into /barsmith and press Apply. It
 --   * creates or updates the plan's macros (matched by name),
 --   * puts spells, macros and items into the planned action slots,
 --   * binds the planned keys to the planned buttons and saves the bindings.
@@ -10,11 +10,11 @@
 -- on to their own buttons, so whatever this addon sets shows up on those bars.
 -- Some of them switch the main bar in forms where the game doesn't; see COPY_PAGES.
 --
--- The last applied plan is kept in BarPlanDB. With auto-fill on (the default),
+-- The last applied plan is kept in BarsmithDB. With auto-fill on (the default),
 -- a spell you learn or an item you get later goes into its planned slot if that slot is empty.
 
-BarPlan = BarPlan or {}
-local BP = BarPlan
+Barsmith = Barsmith or {}
+local BP = Barsmith
 
 local PREFIX = "BP1:"
 local FORMAT_VERSION = 1
@@ -227,7 +227,7 @@ function BP.parse(text)
         return nil, "The plan string is damaged. Copy it again from the planner."
     end
     if version > FORMAT_VERSION then
-        return nil, "This plan was made by a newer planner. Update the BarPlan addon."
+        return nil, "This plan was made by a newer version of the page. Update the Barsmith addon."
     end
     return plan
 end
@@ -259,7 +259,7 @@ if not CreateFrame then return end
 local BOOK = BOOKTYPE_SPELL or "spell"
 
 local function say(msg)
-    DEFAULT_CHAT_FRAME:AddMessage("|cff0cd29fBarPlan|r: " .. msg)
+    DEFAULT_CHAT_FRAME:AddMessage("|cff0cd29fBarsmith|r: " .. msg)
 end
 
 local function getSpellName(id)
@@ -697,12 +697,12 @@ function BP.run(text, dry)
         return
     end
     local r = BP.apply(plan, dry)
-    if not dry then BarPlanDB.last = trim(text) end
+    if not dry then BarsmithDB.last = trim(text) end
     showStatus(reportLines(r, dry))
 end
 
 local function buildFrame()
-    local f = CreateFrame("Frame", "BarPlanFrame", UIParent, "BasicFrameTemplateWithInset")
+    local f = CreateFrame("Frame", "BarsmithFrame", UIParent, "BasicFrameTemplateWithInset")
     f:SetSize(620, 470)
     f:SetPoint("CENTER")
     f:SetFrameStrata("DIALOG")
@@ -712,19 +712,19 @@ local function buildFrame()
     f:RegisterForDrag("LeftButton")
     f:SetScript("OnDragStart", f.StartMoving)
     f:SetScript("OnDragStop", f.StopMovingOrSizing)
-    tinsert(UISpecialFrames, "BarPlanFrame") -- Esc closes it
+    tinsert(UISpecialFrames, "BarsmithFrame") -- Esc closes it
 
     local title = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     title:SetPoint("TOP", 0, -5)
-    title:SetText("BarPlan")
+    title:SetText("Barsmith")
 
     local help = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     help:SetPoint("TOPLEFT", 16, -34)
     help:SetPoint("TOPRIGHT", -16, -34)
     help:SetJustifyH("LEFT")
-    help:SetText("Paste a plan string from the bar planner page (Ctrl+V). Check shows what would change, Apply does it.")
+    help:SetText("Paste a plan string from the Barsmith page (Ctrl+V). Check shows what would change, Apply does it.")
 
-    local scroll = CreateFrame("ScrollFrame", "BarPlanScroll", f, "UIPanelScrollFrameTemplate")
+    local scroll = CreateFrame("ScrollFrame", "BarsmithScroll", f, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", 18, -56)
     scroll:SetPoint("BOTTOMRIGHT", -38, 150)
 
@@ -778,8 +778,8 @@ local function buildFrame()
     local autoLabel = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     autoLabel:SetPoint("LEFT", auto, "RIGHT", 2, 0)
     autoLabel:SetText("Auto-fill new spells")
-    auto:SetChecked(BarPlanDB.auto)
-    auto:SetScript("OnClick", function(self) BarPlanDB.auto = self:GetChecked() and true or false end)
+    auto:SetChecked(BarsmithDB.auto)
+    auto:SetScript("OnClick", function(self) BarsmithDB.auto = self:GetChecked() and true or false end)
     f.auto = auto
 
     f:Hide()
@@ -788,7 +788,7 @@ end
 
 local function openFrame(text)
     frame = frame or buildFrame()
-    frame.auto:SetChecked(BarPlanDB.auto)
+    frame.auto:SetChecked(BarsmithDB.auto)
     if text then frame.edit:SetText(text) end
     frame:Show()
 end
@@ -801,9 +801,9 @@ local autoQueued, autoAfterCombat = false, false
 
 local function autoFill()
     autoQueued = false
-    if not (BarPlanDB and BarPlanDB.auto and BarPlanDB.last) then return end
+    if not (BarsmithDB and BarsmithDB.auto and BarsmithDB.last) then return end
     if InCombatLockdown() then autoAfterCombat = true return end
-    local plan = BP.parse(BarPlanDB.last)
+    local plan = BP.parse(BarsmithDB.last)
     local _, myClass = UnitClass("player")
     if not plan or (plan.class and plan.class ~= myClass) then return end
     local book
@@ -840,13 +840,13 @@ for _, ev in ipairs({ "ADDON_LOADED", "SPELLS_CHANGED", "LEARNED_SPELL_IN_TAB", 
 end
 events:SetScript("OnEvent", function(_, event, arg1)
     if event == "ADDON_LOADED" then
-        if arg1 == "BarPlan" then
-            BarPlanDB = BarPlanDB or {}
-            if BarPlanDB.auto == nil then BarPlanDB.auto = true end
+        if arg1 == "Barsmith" then
+            BarsmithDB = BarsmithDB or {}
+            if BarsmithDB.auto == nil then BarsmithDB.auto = true end
         end
     elseif event == "PLAYER_REGEN_ENABLED" then
         if autoAfterCombat then autoAfterCombat = false; queueAutoFill() end
-    elseif BarPlanDB then
+    elseif BarsmithDB then
         queueAutoFill()
     end
 end)
@@ -855,16 +855,17 @@ end)
 -- Slash command
 ------------------------------------------------------------------------
 
-SLASH_BARPLAN1 = "/barplan"
-SlashCmdList.BARPLAN = function(msg)
+SLASH_BARSMITH1 = "/barsmith"
+SLASH_BARSMITH2 = "/barplan" -- the addon's old name
+SlashCmdList.BARSMITH = function(msg)
     msg = trim(msg):lower()
     if msg == "apply" then
-        if BarPlanDB.last then BP.run(BarPlanDB.last, false)
-        else say("No plan applied yet. Type /barplan and paste one.") end
+        if BarsmithDB.last then BP.run(BarsmithDB.last, false)
+        else say("No plan applied yet. Type /barsmith and paste one.") end
     elseif msg == "auto" then
-        BarPlanDB.auto = not BarPlanDB.auto
-        say("Auto-fill new spells is " .. (BarPlanDB.auto and "on." or "off."))
-        if frame then frame.auto:SetChecked(BarPlanDB.auto) end
+        BarsmithDB.auto = not BarsmithDB.auto
+        say("Auto-fill new spells is " .. (BarsmithDB.auto and "on." or "off."))
+        if frame then frame.auto:SetChecked(BarsmithDB.auto) end
     elseif msg == "export" then
         openFrame(BP.exportCurrent())
         frame.edit:SetFocus()
@@ -875,6 +876,6 @@ SlashCmdList.BARPLAN = function(msg)
     else
         local fresh = not frame
         openFrame()
-        if fresh and BarPlanDB.last then frame.edit:SetText(BarPlanDB.last) end
+        if fresh and BarsmithDB.last then frame.edit:SetText(BarsmithDB.last) end
     end
 end

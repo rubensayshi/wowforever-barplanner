@@ -17,7 +17,7 @@ A player who happens to build tools, not a dev talking down to players.
 - **"+" as conjunction:** "macros + keybinds", "your main + alts"
 - **Em-dashes:** Never use em-dashes. Only exception: the "Hey —" announcement opener.
 - **No Oxford comma**
-- **Backticks:** Always wrap slash commands, addon folder/file names and plan strings in backticks: `/barplan`, `/reload`, `Interface/AddOns`
+- **Backticks:** Always wrap slash commands, addon folder/file names and plan strings in backticks: `/barsmith`, `/reload`, `Interface/AddOns`
 
 ## Capitalization
 - **Default lowercase starts** in casual messages: "yea that's a bug", "tbh I think stance bars are the messy part"

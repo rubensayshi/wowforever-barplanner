@@ -1,8 +1,0 @@
-## Interface: 16001, 11509
-## Title: BarPlan
-## Notes: Applies a bar plan from the bar planner page: creates macros, fills action bar slots and sets keybinds. /barplan
-## Author: Ruben
-## Version: 1.0.0
-## SavedVariables: BarPlanDB
-
-BarPlan.lua

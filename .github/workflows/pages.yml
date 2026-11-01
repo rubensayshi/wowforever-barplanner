@@ -27,7 +27,7 @@ jobs:
         run: |
           mkdir -p _site
           cp -r index.html backdrops _site/
-          (cd addon && zip -qr ../_site/BarPlan.zip BarPlan)
+          (cd addon && zip -qr ../_site/Barsmith.zip Barsmith)
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

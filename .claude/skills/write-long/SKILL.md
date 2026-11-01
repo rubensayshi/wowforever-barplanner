@@ -55,7 +55,7 @@ Players, not coworkers. They know the game better than any dev doc does, have se
 - **Credit others:** the addon/tool/creator that inspired it, data sources, people who reported bugs
 - **Give people outs:** "if you already have your bars sorted this probably isn't for you"
 - **Self-include in criticism:** "yea that's on me, I only tested on my shaman"
-- **Ask for feedback concretely:** "which class is broken for you?", "screenshot of `/barplan` would help" (not "let me know what you think!")
+- **Ask for feedback concretely:** "which class is broken for you?", "screenshot of `/barsmith` would help" (not "let me know what you think!")
 - **Show thinking:** Don't clean up the reasoning process
 
 ## Platform formatting

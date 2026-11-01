@@ -1,12 +1,12 @@
 # Barsmith
 
-A static page for planning WoW Forever action bars, macros and keybinds, plus an addon (`/barplan`) that applies the plan in game. See [README.md](README.md) for what users see and the plan string format. Record new sources in its Sources section.
+A static page for planning WoW Forever action bars, macros and keybinds, plus an addon (`/barsmith`) that applies the plan in game. See [README.md](README.md) for what users see and the plan string format. Record new sources in its Sources section.
 
 ## What's here
 
 - `index.html`: the whole planner in one file (HTML, CSS and JS, no framework, no build step). Plans are saved in `localStorage` under `barplanner.v3`; older keys (`v2`, `v1`) are migrated on load, so keep that migration working if the saved shape changes.
 - The spellbook data sits inside `index.html` between `/* spellbook-data:start */` and `/* spellbook-data:end */`. Don't edit it by hand; rebuild it with `tools/build-spellbook.py`.
-- `addon/BarPlan/`: the in-game importer (Lua, one file). The `.toc` lists interface versions 16001 (Forever) and 11509 (Classic Era). It reads the same `BP1:` plan string the page writes, so change both sides together.
+- `addon/Barsmith/`: the in-game importer (Lua, one file). The `.toc` lists interface versions 16001 (Forever) and 11509 (Classic Era). It reads the same `BP1:` plan string the page writes, so change both sides together.
 - `backdrops/`: one 1440x900 WebP per race, made by `tools/fetch-backdrops.py`.
 - `tools/`: Python scripts that fetch data. Run them with `python3 -I`.
 

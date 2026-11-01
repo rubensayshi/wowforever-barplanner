@@ -43,11 +43,14 @@ RACIAL_HEADINGS = {r: r for r in RACES} | {"High Order Skyborne": "Skyborne", "W
 RACIAL_TOGGLES = {"Find Treasure"}
 
 # Stance bar per class, in stance bar order. page = first slot of the main bar while in it (None = no own page).
+# Pages follow the client's SpellShapeshiftForm.BonusActionBar for this build (page = 73 + 12 * (bar - 1)):
+# Cat 1, Bear 3, Battle 1, Defensive 2, Berserker 3, Stealth 1. Moonkin Form and Shadowform are 0, so unlike
+# retail they keep the normal main bar. Prowl has no form of its own, so it stays on the Cat Form page.
 STANCES = {
     "WARRIOR": [("Battle Stance", 73), ("Defensive Stance", 85), ("Berserker Stance", 97)],
-    "DRUID": [("Bear Form", 97), ("Aquatic Form", None), ("Cat Form", 73), ("Travel Form", None), ("Moonkin Form", 109)],
+    "DRUID": [("Bear Form", 97), ("Aquatic Form", None), ("Cat Form", 73), ("Travel Form", None), ("Moonkin Form", None)],
     "ROGUE": [("Stealth", 73)],
-    "PRIEST": [("Shadowform", 73)],
+    "PRIEST": [("Shadowform", None)],
 }
 
 # Spells every class has, and professions. (name, classes or None)

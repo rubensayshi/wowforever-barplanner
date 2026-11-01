@@ -30,6 +30,7 @@ jobs:
           mkdir -p _site build
           cp -r index.html backdrops _site/
           cp -r addon/Barsmith build/
+          cp LICENSE build/Barsmith/
           sed -i "s/@project-version@/$(git describe --tags --always)/" build/Barsmith/Barsmith.toc
           (cd build && zip -qr ../_site/Barsmith.zip Barsmith)
       - uses: actions/configure-pages@v5

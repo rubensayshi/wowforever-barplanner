@@ -29,6 +29,7 @@ The addon refuses a plan made for a different class. It has been tried on WoW Cl
 | [tools/build-spellbook.py](tools/build-spellbook.py) | Rebuilds the spellbook data in index.html from Forever's data: `python3 -I tools/build-spellbook.py index.html [cache-dir]` |
 | [tools/fetch-backdrops.py](tools/fetch-backdrops.py) | Downloads the race backdrops from Warcraft Wiki and shrinks them: `python3 -I tools/fetch-backdrops.py backdrops` (needs Pillow) |
 | [.github/workflows/pages.yml](.github/workflows/pages.yml) | Publishes the page, the backdrops and Barsmith.zip on every push to `main`. |
+| [LICENSE](LICENSE) | MIT license for the code. Ships in both addon zips. |
 | [.github/workflows/release.yml](.github/workflows/release.yml), [.pkgmeta](.pkgmeta) | Packages the addon and uploads it to CurseForge and GitHub Releases when a `v*` tag is pushed. |
 
 ## Plan string
@@ -70,4 +71,4 @@ Read 2026-11-01.
 - CurseForge files for Forever are tagged with game version 1.60.1 (seen on EUI Tweaks above and others, e.g. https://www.curseforge.com/wow/addons/wow-forever-suite/files/all). The names BarPlan (https://www.curseforge.com/wow/addons/barplan, a different Forever addon with its own `/barplan`) and BarSmith (https://www.curseforge.com/wow/addons/barsmith, retail only) are taken, hence "Barsmith Importer".
 - BigWigsMods/packager v2.6.1, `release.sh`: interface 16xxx maps to game type forever (CurseForge game version type 88568), the only Forever TOC suffix it knows is `_Camelot`, and it skips WoWInterface for Forever: https://github.com/BigWigsMods/packager/blob/v2.6.1/release.sh (Forever support added in https://github.com/BigWigsMods/packager/pull/202)
 
-World of Warcraft and its icons and screenshots are Blizzard Entertainment's. This is a fan tool.
+The code (page, addon and tools) is under the MIT license, see [LICENSE](LICENSE). World of Warcraft and its icons and screenshots are Blizzard Entertainment's. This is a fan tool.

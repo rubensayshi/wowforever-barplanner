@@ -21,7 +21,7 @@ from PIL import Image
 BACKDROPS = {
     "human": ("Northshire Abbey.jpg", 0.5),
     "dwarf": ("Kharanos.jpg", 0.5),
-    "gnome": ("Gates of Ironforge.jpg", 0.5),
+    "gnome": ("Gnomeregan Entrance.jpg", 0.5),
     "nightelf": ("Dolanaar.jpg", 0.5),
     "orc": ("Valley of Trials.jpg", 0.5),
     "undead": ("Tirisfal Glades.jpg", 0.5),

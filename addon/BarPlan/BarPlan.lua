@@ -10,7 +10,7 @@
 -- so whatever this addon sets shows up on those bars.
 --
 -- The last applied plan is kept in BarPlanDB. With auto-fill on (the default),
--- a spell you learn later goes into its planned slot if that slot is empty.
+-- a spell you learn or an item you get later goes into its planned slot if that slot is empty.
 
 BarPlan = BarPlan or {}
 local BP = BarPlan
@@ -148,6 +148,14 @@ local function trim(s)
     return ((s or ""):gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
+-- Cut a UTF-8 string to at most n bytes without splitting a character.
+local function cutBytes(s, n)
+    if #s <= n then return s end
+    local i = n + 1
+    while i > 1 and s:byte(i) >= 0x80 and s:byte(i) < 0xC0 do i = i - 1 end
+    return s:sub(1, i - 1)
+end
+
 -- Returns plan or nil, error message.
 function BP.parse(text)
     text = trim(text)
@@ -256,6 +264,14 @@ local function pickupItem(id)
     if C_Item and C_Item.PickupItem then C_Item.PickupItem(id) else PickupItem(id) end
 end
 
+-- The game only lets you pick up an item you carry or wear.
+local function haveItem(id)
+    local count = (C_Item and C_Item.GetItemCount and C_Item.GetItemCount(id)) or (GetItemCount and GetItemCount(id)) or 0
+    if count > 0 then return true end
+    local equipped = (C_Item and C_Item.IsEquippedItem) or IsEquippedItem
+    return equipped and equipped(id) or false
+end
+
 local function useNewSpellBook()
     return C_SpellBook and C_SpellBook.GetSpellBookItemInfo and Enum and Enum.SpellBookSpellBank
 end
@@ -335,7 +351,7 @@ end
 
 local function resolveItem(value)
     local id = tonumber(value:match("^item:(%d+)")) or tonumber(value) or getItemID(value)
-    if not id then return nil, "item not found; have it in your bags and try again" end
+    if not id or not haveItem(id) then return nil, "not in bags" end
     return { kind = "item", id = id, pickup = function() pickupItem(id) end }
 end
 
@@ -368,19 +384,26 @@ local function applyMacros(plan, dry, r)
     local maxAccount = MAX_ACCOUNT_MACROS or 120
     local maxChar = MAX_CHARACTER_MACROS or 18
     for _, m in ipairs(plan.macros) do
-        if #m.body > MACRO_BODY_MAX then
-            r.problems[#r.problems + 1] = ("Macro %s is %d characters; the game keeps the first %d.")
+        -- The game refuses a longer body instead of cutting it, so cut it here.
+        local body = cutBytes(m.body, MACRO_BODY_MAX)
+        if body ~= m.body then
+            r.problems[#r.problems + 1] = ("Macro %s is %d characters; only the first %d are kept.")
                 :format(m.name, #m.body, MACRO_BODY_MAX)
         end
         local icon = tonumber(m.icon) or (m.icon ~= "" and m.icon) or nil
         local idx = GetMacroIndexByName(m.name)
         if idx and idx > 0 then
             local _, oldIcon, oldBody = GetMacroInfo(idx)
-            if trim(oldBody) == trim(m.body) then
+            if trim(oldBody) == trim(body) then
                 r.macrosSame = r.macrosSame + 1
             else
-                if not dry then EditMacro(idx, m.name, icon or oldIcon, m.body) end
-                r.macrosChanged = r.macrosChanged + 1
+                local ok, res = true, nil
+                if not dry then ok, res = pcall(EditMacro, idx, m.name, icon or oldIcon, body) end
+                if ok then
+                    r.macrosChanged = r.macrosChanged + 1
+                else
+                    r.problems[#r.problems + 1] = "Macro " .. m.name .. ": couldn't change it (" .. tostring(res) .. ")."
+                end
             end
         elseif m.perChar and nChar >= maxChar then
             r.problems[#r.problems + 1] = "Macro " .. m.name .. ": character macros are full (" .. maxChar .. ")."
@@ -388,7 +411,7 @@ local function applyMacros(plan, dry, r)
             r.problems[#r.problems + 1] = "Macro " .. m.name .. ": general macros are full (" .. maxAccount .. ")."
         else
             local ok, res = true, true
-            if not dry then ok, res = pcall(CreateMacro, m.name, icon or DEFAULT_ICON, m.body, m.perChar) end
+            if not dry then ok, res = pcall(CreateMacro, m.name, icon or DEFAULT_ICON, body, m.perChar) end
             if ok and res then
                 r.macrosNew = r.macrosNew + 1
                 if m.perChar then nChar = nChar + 1 else nAccount = nAccount + 1 end
@@ -426,6 +449,9 @@ local function applySlots(plan, dry, r)
             end
             if not target and why == "not learned yet" then
                 r.notLearned[#r.notLearned + 1] = s.value
+            elseif not target and why == "not in bags" then
+                local id = tonumber(s.value:match("^item:(%d+)"))
+                r.notInBags[#r.notInBags + 1] = (id and getItemName(id)) or s.value
             elseif not target then
                 r.skipped[#r.skipped + 1] = label .. ": " .. s.value .. " (" .. why .. ")"
             elseif slotHolds(s.slot, target) then
@@ -474,7 +500,7 @@ end
 function BP.apply(plan, dry)
     local r = {
         placed = 0, same = 0, cleared = 0, macrosNew = 0, macrosChanged = 0, macrosSame = 0,
-        bound = 0, bindsSame = 0, notLearned = {}, skipped = {}, problems = {},
+        bound = 0, bindsSame = 0, notLearned = {}, notInBags = {}, skipped = {}, problems = {},
     }
     applyMacros(plan, dry, r)
     applySlots(plan, dry, r)
@@ -494,6 +520,9 @@ local function reportLines(r, dry)
     end
     if #r.notLearned > 0 then
         lines[#lines + 1] = ("Not learned yet, skipped (%d): %s"):format(#r.notLearned, table.concat(r.notLearned, ", "))
+    end
+    if #r.notInBags > 0 then
+        lines[#lines + 1] = ("Not in your bags, skipped (%d): %s"):format(#r.notInBags, table.concat(r.notInBags, ", "))
     end
     for _, s in ipairs(r.skipped) do lines[#lines + 1] = "Skipped " .. s end
     for _, p in ipairs(r.problems) do lines[#lines + 1] = "|cffff6060" .. p .. "|r" end
@@ -677,7 +706,7 @@ local function openFrame(text)
 end
 
 ------------------------------------------------------------------------
--- Auto-fill: when you learn a spell, put it in its planned slot if empty
+-- Auto-fill: when you learn a spell or get an item, put it in its planned slot if empty
 ------------------------------------------------------------------------
 
 local autoQueued, autoAfterCombat = false, false
@@ -691,11 +720,17 @@ local function autoFill()
     if not plan or (plan.class and plan.class ~= myClass) then return end
     local book
     for _, s in ipairs(plan.slots) do
-        if s.kind == "spell" and not HasAction(s.slot) then
-            book = book or spellbookEntries()
-            local target = resolveSpell(s.value, book)
+        if (s.kind == "spell" or s.kind == "item") and not HasAction(s.slot) then
+            local target
+            if s.kind == "spell" then
+                book = book or spellbookEntries()
+                target = resolveSpell(s.value, book)
+            else
+                target = resolveItem(s.value)
+            end
             if target and placeTarget(s.slot, target) then
-                say("Put " .. s.value .. " on " .. slotLabel(s.slot) .. ".")
+                local id = s.kind == "item" and tonumber(s.value:match("^item:(%d+)"))
+                say("Put " .. ((id and getItemName(id)) or s.value) .. " on " .. slotLabel(s.slot) .. ".")
             end
         end
     end
@@ -712,7 +747,7 @@ local events = CreateFrame("Frame")
 -- Not every client has every event (Classic Era has no LEARNED_SPELL_IN_TAB;
 -- newer clients call it LEARNED_SPELL_IN_SKILL_LINE),
 -- and registering an unknown one is an error that would stop the file here.
-for _, ev in ipairs({ "ADDON_LOADED", "SPELLS_CHANGED", "LEARNED_SPELL_IN_TAB", "LEARNED_SPELL_IN_SKILL_LINE", "PLAYER_REGEN_ENABLED" }) do
+for _, ev in ipairs({ "ADDON_LOADED", "SPELLS_CHANGED", "LEARNED_SPELL_IN_TAB", "LEARNED_SPELL_IN_SKILL_LINE", "BAG_UPDATE_DELAYED", "PLAYER_REGEN_ENABLED" }) do
     pcall(events.RegisterEvent, events, ev)
 end
 events:SetScript("OnEvent", function(_, event, arg1)

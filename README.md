@@ -1,4 +1,4 @@
-# Bar Planner
+# Barsmith
 
 Set up your WoW Forever action bars, macros and keybinds in the browser, then load them into the game with one string.
 

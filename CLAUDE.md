@@ -1,4 +1,4 @@
-# Bar Planner
+# Barsmith
 
 A static page for planning WoW Forever action bars, macros and keybinds, plus an addon (`/barplan`) that applies the plan in game. See [README.md](README.md) for what users see and the plan string format. Record new sources in its Sources section.
 

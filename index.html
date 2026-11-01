@@ -2,7 +2,8 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bar Planner</title>
+<title>Barsmith</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"%3E%3Cg fill="%2317130f" stroke="%23a58a52" stroke-width="3"%3E%3Crect x="6" y="6" width="15" height="15" rx="2"/%3E%3Crect x="24.5" y="6" width="15" height="15" rx="2" stroke="%23ffd100"/%3E%3Crect x="43" y="6" width="15" height="15" rx="2"/%3E%3C/g%3E%3Cpath d="M2 28 H62 L55 38 H43 L47 56 H17 L21 38 H9 Z" fill="%236e5a35" stroke="%23a58a52" stroke-width="3" stroke-linejoin="round"/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
 /* Layout: an in-game screen (race backdrop, main bar with extra bars stacked on top, stance/pet bar above,
@@ -63,6 +64,8 @@ textarea { font-family: var(--font-mono); font-size: .82rem; width: 100%; resize
 .note.warn { color: var(--ember); }
 
 /* Header: class switcher, race, level, saved plans */
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand svg { flex: none; width: 62px; height: 48px; filter: drop-shadow(0 2px 0 #000); }
 header.top { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; }
 .who { display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
 .who > .row { gap: 10px 18px; justify-content: flex-end; }
@@ -242,7 +245,18 @@ ol.steps li, .howto ul li { margin-bottom: 5px; }
 <div class="wrap">
 <header class="top">
   <div>
-    <h1>Bar Planner</h1>
+    <div class="brand">
+      <svg viewBox="0 0 84 64" aria-hidden="true">
+        <g fill="var(--surface)" stroke="var(--frame-hi)" stroke-width="2">
+          <rect x="12" y="6" width="18" height="18" rx="2"/>
+          <rect x="33" y="6" width="18" height="18" rx="2" stroke="var(--gold)"/>
+          <rect x="54" y="6" width="18" height="18" rx="2"/>
+        </g>
+        <path d="M6 30 H78 L70 41 H54 L58 58 H26 L30 41 H14 Z" fill="var(--frame)" stroke="var(--frame-hi)" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M12 34 H72" stroke="var(--frame-lo)" stroke-width="2"/>
+      </svg>
+      <h1>Barsmith</h1>
+    </div>
     <p class="lede">Set up your bars like you would in game: drag spells from the spellbook onto your bars, write macros, then use keybind mode. Copy the plan string at the bottom into <code>/barplan</code> in game (BarPlan addon) to apply it. Works with EllesmereUI. Your plans are saved in this browser, as many per class as you like.</p>
   </div>
   <div class="who">

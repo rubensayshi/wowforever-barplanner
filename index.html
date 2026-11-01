@@ -420,13 +420,19 @@ function P() {
   return addPlan(Object.assign(emptyPlan(app.cls), { name: nextPlanName() }));
 }
 
+// A plan nobody has touched yet: opening a class makes one, but it isn't worth keeping.
+function isBlank(p) {
+  return !Object.keys(p.slots).length && !p.macros.length && /^(Plan \d+)?$/.test(p.name)
+    && JSON.stringify(p.binds) === JSON.stringify(emptyPlan(p.cls).binds);
+}
 // Plans live in this browser's storage. The plan string is the way to move them elsewhere.
 function save() {
+  const kept = app.plans.filter((p) => !isBlank(p));
   let ok = true;
-  try { localStorage.setItem(STORE, JSON.stringify(app)); } catch (e) { ok = false; }
-  const el = $("saveState");
-  const n = app.plans.length;
-  el.textContent = ok ? `${n} plan${n === 1 ? "" : "s"} saved in this browser` : "Not saved: this browser blocks storage here. Copy the plan string to keep your plan.";
+  try { localStorage.setItem(STORE, JSON.stringify(Object.assign({}, app, { plans: kept }))); } catch (e) { ok = false; }
+  const el = $("saveState"), n = kept.length;
+  el.textContent = !ok ? "Not saved: this browser blocks storage here. Copy the plan string to keep your plan."
+    : n ? `${n} plan${n === 1 ? "" : "s"} saved in this browser` : "Nothing saved yet. Plans save as you edit them.";
   el.classList.toggle("warn", !ok);
 }
 function restore() {

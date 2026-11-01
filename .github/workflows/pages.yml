@@ -23,11 +23,15 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # git describe needs the tags for the addon version
       - name: Build site
         run: |
-          mkdir -p _site
+          mkdir -p _site build
           cp -r index.html backdrops _site/
-          (cd addon && zip -qr ../_site/Barsmith.zip Barsmith)
+          cp -r addon/Barsmith build/
+          sed -i "s/@project-version@/$(git describe --tags --always)/" build/Barsmith/Barsmith.toc
+          (cd build && zip -qr ../_site/Barsmith.zip Barsmith)
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

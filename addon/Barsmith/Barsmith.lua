@@ -856,7 +856,6 @@ end)
 ------------------------------------------------------------------------
 
 SLASH_BARSMITH1 = "/barsmith"
-SLASH_BARSMITH2 = "/barplan" -- the addon's old name
 SlashCmdList.BARSMITH = function(msg)
     msg = trim(msg):lower()
     if msg == "apply" then

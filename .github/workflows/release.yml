@@ -1,0 +1,24 @@
+# Packages the addon and uploads it to CurseForge and GitHub Releases when a version tag is pushed.
+# A tag with "beta" or "alpha" in it (v1.0.0-beta1) is uploaded as that release type.
+# Needs the repo secret CF_API_KEY and "## X-Curse-Project-ID:" in addon/Barsmith/Barsmith.toc;
+# without the project ID it only makes the GitHub release.
+name: Release addon
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the changelog and version come from the tags
+      - uses: BigWigsMods/packager@v2.6.1
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}

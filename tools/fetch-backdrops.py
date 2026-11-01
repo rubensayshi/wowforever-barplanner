@@ -1,7 +1,7 @@
 """Download the race backdrops from Warcraft Wiki and save them as backdrops/<race>.webp.
 
 Each race gets a screenshot of its starting zone. Skyborne start on Zephras Isle,
-which has no screenshots on the wiki yet, so they get Thunder Bluff, where Horde
+which has no screenshots on the wiki yet, so they get Dalaran, where Alliance
 Skyborne arrive. The images are cropped to 16:10 (the screen's shape) and
 shrunk to 1440x900 so the page stays light.
 
@@ -27,7 +27,7 @@ BACKDROPS = {
     "undead": ("Tirisfal Glades.jpg", 0.5),
     "tauren": ("Camp Narache.jpg", 0.5),
     "troll": ("Durotar.jpg", 0.5),
-    "skyborne": ("Thunder Bluff in the distance.jpg", 0.5),
+    "skyborne": ("Zones Dalaran 021.jpg", 0.5),
 }
 SIZE = (1440, 900)
 USER_AGENT = "barplanner-build/1.0 (+https://github.com/rubensayshi/wowforever-barplanner)"

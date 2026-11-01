@@ -351,6 +351,28 @@ const CLASSES = [
 ];
 const CLASS_NAME = Object.fromEntries(CLASSES.map(([k, n]) => [k, n]));
 const RACES = ["Human", "Dwarf", "Night Elf", "Gnome", "Orc", "Undead", "Tauren", "Troll", "Skyborne"];
+// Which classes each race can be: vanilla, plus Forever's Human Hunter, Dwarf Shaman, Gnome Priest, Orc Mage,
+// Troll Warlock and the Skyborne list (Mage is Alliance-only and Shaman Horde-only for Skyborne).
+const RACE_CLASSES = {
+  "Human": ["WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "MAGE", "WARLOCK"],
+  "Dwarf": ["WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN"],
+  "Night Elf": ["WARRIOR", "HUNTER", "ROGUE", "PRIEST", "DRUID"],
+  "Gnome": ["WARRIOR", "ROGUE", "PRIEST", "MAGE", "WARLOCK"],
+  "Orc": ["WARRIOR", "HUNTER", "ROGUE", "SHAMAN", "MAGE", "WARLOCK"],
+  "Undead": ["WARRIOR", "ROGUE", "PRIEST", "MAGE", "WARLOCK"],
+  "Tauren": ["WARRIOR", "HUNTER", "SHAMAN", "DRUID"],
+  "Troll": ["WARRIOR", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK"],
+  "Skyborne": ["WARRIOR", "HUNTER", "ROGUE", "SHAMAN", "MAGE", "DRUID"],
+};
+const FACTION = { "Human": "A", "Dwarf": "A", "Night Elf": "A", "Gnome": "A", "Orc": "H", "Undead": "H", "Tauren": "H", "Troll": "H" };
+const raceOkFor = (race, cls) => (RACE_CLASSES[race] || []).includes(cls);
+const racesFor = (cls) => RACES.filter((r) => raceOkFor(r, cls));
+// Keep the race valid for the class: prefer a race from the same faction, like picking a new character would.
+function fitRace() {
+  if (raceOkFor(app.race, app.cls)) return;
+  const ok = racesFor(app.cls);
+  app.race = ok.find((r) => FACTION[r] && FACTION[r] === FACTION[app.race]) || ok[0];
+}
 const PET_CLASSES = ["HUNTER", "WARLOCK"];
 const PET_BAR = [["Attack", "ability_ghoulfrenzy"], ["Follow", "ability_tracking"], ["Stay", "spell_nature_timestop"],
   ["Pet ability", null], ["Pet ability", null], ["Pet ability", null], ["Pet ability", null],
@@ -579,8 +601,8 @@ function keyNote(cmd) {
 
 // ---- Rendering: header ----
 function renderHeader() {
-  $("classes").innerHTML = CLASSES.map(([k, n, c]) => `<button class="cls" data-cls="${k}" aria-pressed="${app.cls === k}" aria-label="${n}" data-tip="${esc(tip(n, app.cls === k ? "" : "+Click to plan this class"))}" style="--cc:${c};background-image:url(${ICON("classicon_" + k.toLowerCase(), "medium")})"></button>`).join("");
-  $("race").innerHTML = RACES.map((r) => `<option ${r === app.race ? "selected" : ""}>${r}</option>`).join("");
+  $("classes").innerHTML = CLASSES.map(([k, n, c]) => `<button class="cls" data-cls="${k}" aria-pressed="${app.cls === k}" aria-label="${n}" data-tip="${esc(tip(n, "~" + racesFor(k).join(", "), app.cls === k ? "" : "+Click to plan this class"))}" style="--cc:${c};background-image:url(${ICON("classicon_" + k.toLowerCase(), "medium")})"></button>`).join("");
+  $("race").innerHTML = RACES.map((r) => `<option ${r === app.race ? "selected" : ""} ${raceOkFor(r, app.cls) ? "" : "disabled"}>${r}</option>`).join("");
   $("level").value = app.level;
   $("levelOut").textContent = app.level;
   const cur = P();
@@ -878,7 +900,7 @@ function renderExport() {
   $("warnings").innerHTML = warnings().map(([c, t]) => `<li class="${c}">${esc(t)}</li>`).join("");
 }
 
-function render() { hideTip(); buildIndex(); renderHeader(); renderScreen(); renderBook(); renderEditor(); renderMacroEditor(); renderOther(); renderExport(); save(); }
+function render() { hideTip(); fitRace(); buildIndex(); renderHeader(); renderScreen(); renderBook(); renderEditor(); renderMacroEditor(); renderOther(); renderExport(); save(); }
 function refresh() { renderScreen(); renderBook(); renderExport(); save(); } // while typing: leave the editors alone
 
 // ---- Example (Dwarf Shaman) ----

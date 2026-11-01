@@ -5,9 +5,10 @@
 --   * binds the planned keys to the planned buttons and saves the bindings.
 -- Slots and buttons that are not in the plan are left alone.
 --
--- EllesmereUI's action bars show the game's normal action slots and use the
--- game's normal button bindings (ACTIONBUTTON1, MULTIACTIONBAR1BUTTON1, ...),
--- so whatever this addon sets shows up on those bars.
+-- EllesmereUI, Bartender4, Dominos and ElvUI show the game's normal action slots
+-- and pass the game's normal button bindings (ACTIONBUTTON1, MULTIACTIONBAR1BUTTON1, ...)
+-- on to their own buttons, so whatever this addon sets shows up on those bars.
+-- Some of them switch the main bar in forms where the game doesn't; see COPY_PAGES.
 --
 -- The last applied plan is kept in BarPlanDB. With auto-fill on (the default),
 -- a spell you learn or an item you get later goes into its planned slot if that slot is empty.
@@ -40,6 +41,39 @@ local PAGES = {
     { first = 109, label = "Bar 1 stance 4" },
     { first = 13,  label = "Bar 1 page 2" }, -- Shift+2; pages 3-6 are bars 4, 5, 3 and 2
 }
+
+-- Main bar pages some bar addons switch to although Forever's own bars don't. Apply fills each with
+-- a copy of the page the game shows in that form, so the main bar looks the same either way.
+-- The game never shows these slots, so the copies don't change anything without such an addon.
+--   Shadowform:   Dominos and ElvUI switch to 73-84; the game keeps the normal main bar.
+--   Moonkin Form: Dominos switches to 109-120; the game keeps the normal main bar.
+--   Prowl:        Bartender4 and ElvUI switch to 85-96; the game keeps the Cat Form page (73-84).
+local COPY_PAGES = {
+    PRIEST = { { from = 1, to = 73, label = "Shadowform" } },
+    DRUID = { { from = 1, to = 109, label = "Moonkin Form" }, { from = 73, to = 85, label = "Prowl" } },
+}
+
+local function copyPagesFor(class)
+    return COPY_PAGES[class] or {}
+end
+
+-- The plan's slots plus their copies (marked copy = true). A slot the plan sets itself is never overwritten.
+local function slotsWithCopies(plan, class)
+    local list, bySlot = {}, {}
+    for _, s in ipairs(plan.slots) do
+        list[#list + 1] = s
+        bySlot[s.slot] = s
+    end
+    for _, c in ipairs(copyPagesFor(class)) do
+        for i = 0, 11 do
+            local s = bySlot[c.from + i]
+            if s and not bySlot[c.to + i] then
+                list[#list + 1] = { slot = c.to + i, kind = s.kind, value = s.value, copy = true }
+            end
+        end
+    end
+    return list
+end
 
 -- Non-bar commands the planner offers under "Other keybinds".
 local OTHER_COMMANDS = {
@@ -447,9 +481,31 @@ local function applySlots(plan, dry, r)
     local planMacros = {}
     for _, m in ipairs(plan.macros) do planMacros[m.name:lower()] = true end
     local book = spellbookEntries()
-    for _, s in ipairs(plan.slots) do
+    local _, class = UnitClass("player")
+    for _, s in ipairs(slotsWithCopies(plan, class)) do
         local label = slotLabel(s.slot)
-        if s.kind == "clear" then
+        if s.copy then
+            -- Copies are counted on their own; anything wrong with them is already reported for the original.
+            local target
+            if s.kind == "spell" then target = resolveSpell(s.value, book)
+            elseif s.kind == "macro" then
+                target = resolveMacro(s.value)
+                if not target and dry and planMacros[s.value:lower()] then target = { kind = "macro", id = -1 } end
+            elseif s.kind == "item" then target = resolveItem(s.value)
+            end
+            if s.kind == "clear" then
+                if HasAction(s.slot) then
+                    if not dry then PickupAction(s.slot); ClearCursor() end
+                    r.copied = r.copied + 1
+                end
+            elseif target and slotHolds(s.slot, target) then
+                r.copiedSame = r.copiedSame + 1
+            elseif target and (dry or placeTarget(s.slot, target)) then
+                r.copied = r.copied + 1
+            elseif target then
+                r.problems[#r.problems + 1] = label .. ": couldn't place the copy of " .. s.value .. "."
+            end
+        elseif s.kind == "clear" then
             if HasAction(s.slot) then
                 if not dry then PickupAction(s.slot); ClearCursor() end
                 r.cleared = r.cleared + 1
@@ -522,6 +578,7 @@ function BP.apply(plan, dry)
     local r = {
         placed = 0, same = 0, cleared = 0, macrosNew = 0, macrosChanged = 0, macrosSame = 0,
         bound = 0, bindsSame = 0, notLearned = {}, notInBags = {}, skipped = {}, problems = {},
+        copied = 0, copiedSame = 0,
     }
     applyMacros(plan, dry, r)
     applySlots(plan, dry, r)
@@ -538,6 +595,13 @@ local function reportLines(r, dry)
     else
         lines[1] = ("Done: %d slots filled, %d already right, %d cleared. Macros: %d new, %d changed. Keys: %d set.")
             :format(r.placed, r.same, r.cleared, r.macrosNew, r.macrosChanged, r.bound)
+    end
+    if r.copied + r.copiedSame > 0 then
+        local _, class = UnitClass("player")
+        local names = {}
+        for _, c in ipairs(copyPagesFor(class)) do names[#names + 1] = c.label end
+        lines[#lines + 1] = ("Copies for bar addons that switch the main bar in %s: %d %s, %d already right.")
+            :format(table.concat(names, " and "), r.copied, dry and "to change" or "changed", r.copiedSame)
     end
     if #r.notLearned > 0 then
         lines[#lines + 1] = ("Not learned yet (or misspelled), skipped (%d): %s"):format(#r.notLearned, table.concat(r.notLearned, ", "))
@@ -561,10 +625,12 @@ function BP.exportCurrent()
     local book = spellbookEntries()
     local seenMacro = {}
     local maxAccount = MAX_ACCOUNT_MACROS or 120
+    local copyPage = {} -- leave out the copies Apply made; the planner has no such pages
+    for _, c in ipairs(copyPagesFor(class)) do copyPage[c.to] = true end
     for _, p in ipairs(PAGES) do
         for i = 0, 11 do
             local slot = p.first + i
-            if HasAction(slot) then
+            if not copyPage[p.first] and HasAction(slot) then
                 local kind, id = GetActionInfo(slot)
                 if kind == "spell" then
                     local name = getSpellName(id)
@@ -741,7 +807,7 @@ local function autoFill()
     local _, myClass = UnitClass("player")
     if not plan or (plan.class and plan.class ~= myClass) then return end
     local book
-    for _, s in ipairs(plan.slots) do
+    for _, s in ipairs(slotsWithCopies(plan, myClass)) do
         if (s.kind == "spell" or s.kind == "item") and not HasAction(s.slot) then
             local target
             if s.kind == "spell" then
@@ -750,7 +816,7 @@ local function autoFill()
             else
                 target = resolveItem(s.value)
             end
-            if target and placeTarget(s.slot, target) then
+            if target and placeTarget(s.slot, target) and not s.copy then
                 local id = s.kind == "item" and tonumber(s.value:match("^item:(%d+)"))
                 say("Put " .. ((id and getItemName(id)) or s.value) .. " on " .. slotLabel(s.slot) .. ".")
             end

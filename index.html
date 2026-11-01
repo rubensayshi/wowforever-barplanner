@@ -98,7 +98,6 @@ header.top { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: flex-e
 .toolbar { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-bottom: 10px; font-size: .85rem; }
 .toolbar .sep { width: 1px; height: 20px; background: var(--frame); }
 .dg { font-family: var(--font-body); font-weight: 600; font-size: .92em; }
-.num { font: 600 .8em var(--font-body); opacity: .75; }
 .toolbar .lbl { color: var(--muted); font-family: var(--font-display); }
 #kbBtn[aria-pressed="true"] { color: #fff; background: linear-gradient(var(--red-hi), var(--red-lo)); box-shadow: 0 0 0 1px var(--gold-dim), 0 0 10px rgb(255 60 30 / .5); }
 
@@ -424,6 +423,9 @@ let app = { cls: "SHAMAN", race: "Dwarf", level: 60, plans: [], cur: {}, tab: "c
 let sel = null;        // { slot } or { cmd, label } for stance/pet buttons
 let selMacro = null;   // index into P().macros
 let page = 0;          // 0 = normal main bar, else first slot of page 2 or a stance page
+let pageBeforePage2 = 0;
+// Warriors are always in a stance, so their main bar has no plain page: it starts on Battle Stance.
+const restPage = () => (app.cls === "WARRIOR" ? 73 : 0);
 let kbMode = false, hoverCmd = null, capture = null, lastBound = "";
 
 function emptyPlan(cls) {
@@ -704,6 +706,7 @@ function petBarHtml() {
   }).join("")}</div>`;
 }
 function renderScreen() {
+  if (!page) page = restPage();
   const shown = P().shown;
   const stack = BARS.filter((b) => b.where !== "side" && (b.key === "b1" || shown.includes(b.key))).map((b) => barHtml(b));
   const side = BARS.filter((b) => b.where === "side" && shown.includes(b.key)).map((b) => barHtml(b, true));
@@ -718,8 +721,7 @@ function renderScreen() {
       <div class="stack">${stack.join("")}<div class="mini-row small">${stanceBarHtml()}${petBarHtml()}</div></div>
     </div>`;
   $("barChips").innerHTML = BARS.slice(1).map((b) => {
-    let n = 0; for (let i = 0; i < 12; i++) if (P().slots[b.first + i]) n++;
-    return `<button class="chip" data-bar="${b.key}" aria-pressed="${shown.includes(b.key)}" title="${b.where === "side" ? "Right edge" : "Stacked above the main bar"}">${b.name.slice(4)}${n ? ` <span class="num">${n}</span>` : ""}</button>`;
+    return `<button class="chip" data-bar="${b.key}" aria-pressed="${shown.includes(b.key)}" title="${b.where === "side" ? "Right edge" : "Stacked above the main bar"}">${b.name.slice(4)}</button>`;
   }).join("");
   $("kbBtn").setAttribute("aria-pressed", String(kbMode));
 }
@@ -1007,13 +1009,16 @@ $("barChips").addEventListener("click", (e) => {
 const screen = $("screen");
 screen.addEventListener("click", (e) => {
   if (e.target.id === "kbDone") { setKb(false); return; }
-  if (e.target.closest("[data-pg]")) { page = page === PAGE2 ? 0 : PAGE2; sel = null; render(); return; }
+  if (e.target.closest("[data-pg]")) { // back from page 2 goes to the stance you were in
+    if (page === PAGE2) page = pageBeforePage2; else { pageBeforePage2 = page; page = PAGE2; }
+    sel = null; render(); return;
+  }
   const b = e.target.closest(".ab");
   if (!b || kbMode) return;
   if (b.dataset.slot) { selectSlot(+b.dataset.slot); return; }
   if (b.dataset.stance != null) {
     const st = D.stances[app.cls][+b.dataset.stance];
-    if (st.page) page = page === st.page ? 0 : st.page;
+    if (st.page) page = page === st.page && !restPage() ? 0 : st.page; // clicking the active stance again leaves it, except for warriors
     sel = { cmd: b.dataset.cmd, label: `Stance button ${+b.dataset.stance + 1}: ${st.n}` };
     render();
   } else if (b.dataset.pet != null) {

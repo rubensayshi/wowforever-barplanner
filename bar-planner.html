@@ -1,0 +1,899 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bar Planner</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Same palette as dwarf-shaman-checklist.html. Bars on the left, button and macro editors in a sticky column on the right. */
+:root {
+  --bg: #eef0f3;
+  --surface: #f9fafb;
+  --line: #d3d8df;
+  --fg: #1c2530;
+  --muted: #5b6876;
+  --accent: #0b5fc4;      /* spells */
+  --accent-soft: #dbe8f9;
+  --book: #5a4a9c;        /* macros */
+  --book-soft: #e7e3f6;
+  --item: #1f7a58;        /* items */
+  --item-soft: #dcf0e7;
+  --ember: #a8501a;       /* clear slot, warnings */
+  --ember-soft: #f6e4d6;
+  --slot: #e3e7ec;
+  --font-display: "Bitter", Georgia, serif;
+  --font-body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14181d; --surface: #1b2128; --line: #303945; --fg: #e4e9ef; --muted: #98a4b1;
+    --accent: #6aaeff; --accent-soft: #1b304a; --book: #b3a6ee; --book-soft: #2b2745;
+    --item: #6fcfa6; --item-soft: #1c3329; --ember: #e59a63; --ember-soft: #3a2a1e; --slot: #222a33;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14181d; --surface: #1b2128; --line: #303945; --fg: #e4e9ef; --muted: #98a4b1;
+  --accent: #6aaeff; --accent-soft: #1b304a; --book: #b3a6ee; --book-soft: #2b2745;
+  --item: #6fcfa6; --item-soft: #1c3329; --ember: #e59a63; --ember-soft: #3a2a1e; --slot: #222a33;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 64px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.9rem; line-height: 1.15; margin: 0; }
+h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; margin: 0 0 8px; }
+h3 { font-size: .95rem; font-weight: 600; margin: 0; }
+code, .mono { font-family: var(--font-mono); font-size: .85em; }
+.muted { color: var(--muted); }
+.lede { color: var(--muted); max-width: 72ch; margin: 6px 0 0; }
+header.top { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.controls .sep { width: 1px; height: 22px; background: var(--line); margin-inline: 4px; }
+.controls label { display: inline-flex; gap: 6px; align-items: center; font-size: .9rem; color: var(--muted); }
+
+button, input, select, textarea { font: inherit; color: var(--fg); }
+input[type="text"], select, textarea { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; min-width: 0; }
+textarea { font-family: var(--font-mono); font-size: .82rem; width: 100%; resize: vertical; }
+.chip, .btn { font-size: .85rem; padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; white-space: nowrap; }
+.btn { border-radius: 6px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.chip .n { opacity: .75; font-variant-numeric: tabular-nums; }
+:is(button, input, select, textarea, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 370px; gap: 24px; align-items: start; }
+aside { position: sticky; top: 12px; display: flex; flex-direction: column; gap: 16px; max-height: calc(100vh - 24px); overflow-y: auto; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+section.panel + section.panel { margin-top: 16px; }
+
+/* Bars */
+#bars { display: flex; flex-direction: column; gap: 14px; container-type: inline-size; }
+.barhead { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; margin-bottom: 6px; }
+.barhead small { color: var(--muted); font-size: .8rem; }
+.slots { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 5px; }
+.slot { user-select: none; color: var(--fg); position: relative; aspect-ratio: 1; min-width: 0; padding: 14px 3px 3px; border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 6px; background: var(--slot); cursor: pointer; text-align: center; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.slot .name { font-size: .68rem; line-height: 1.15; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow-wrap: break-word; hyphens: auto; }
+.slot .key { position: absolute; top: 2px; right: 4px; font-family: var(--font-mono); font-size: .66rem; font-weight: 600; color: var(--fg); }
+.slot .num { position: absolute; top: 2px; left: 4px; font-size: .6rem; color: var(--muted); }
+.slot.k-spell { border-left-color: var(--accent); background: var(--accent-soft); }
+.slot.k-macro { border-left-color: var(--book); background: var(--book-soft); }
+.slot.k-item  { border-left-color: var(--item); background: var(--item-soft); }
+.slot.k-clear { border-left-color: var(--ember); background: repeating-linear-gradient(135deg, var(--slot) 0 6px, var(--ember-soft) 6px 12px); }
+.slot.k-clear .name { color: var(--ember); }
+.slot.sel { outline: 2px solid var(--fg); outline-offset: 1px; }
+.slot.drop { outline: 2px dashed var(--accent); }
+.binding .slot:hover { outline: 2px solid var(--ember); outline-offset: 1px; }
+.binding .slot .key { color: var(--ember); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .8rem; color: var(--muted); margin-top: 10px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+/* Floats at the bottom so turning keybind mode on doesn't move the buttons under the mouse. */
+#bindBanner { display: none; position: fixed; z-index: 10; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(640px, calc(100% - 32px)); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--ember); background: var(--ember-soft); color: var(--fg); font-size: .9rem; box-shadow: 0 6px 20px rgb(0 0 0 / .18); }
+.binding #bindBanner { display: block; }
+
+/* Editors */
+.meta { color: var(--muted); font-size: .8rem; margin: -6px 0 10px; font-family: var(--font-mono); }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+.field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 10px; font-size: .85rem; color: var(--muted); }
+.field input, .field select, .field textarea { color: var(--fg); }
+.row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.row input { flex: 1; }
+.keyin { font-family: var(--font-mono); font-size: .85rem; width: 9.5em; flex: none !important; text-transform: uppercase; }
+.keyin::placeholder { text-transform: none; }
+.keyin.capturing { border-color: var(--ember); background: var(--ember-soft); }
+.note { font-size: .82rem; color: var(--muted); margin: 4px 0 0; }
+.note.warn { color: var(--ember); }
+.mlist { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.mlist li { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; padding: 4px 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+.mlist li:hover { background: var(--book-soft); }
+.mlist li.sel { border-color: var(--book); background: var(--book-soft); }
+.mlist li small { color: var(--muted); font-size: .75rem; text-align: right; }
+.mlist .mname { font-weight: 600; }
+.count { font-size: .8rem; color: var(--muted); font-family: var(--font-body); font-weight: 400; }
+.counter { font-size: .78rem; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.counter.over { color: var(--ember); font-weight: 600; }
+
+/* Other keybinds */
+.otherkeys { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 6px 18px; margin-top: 10px; }
+.otherkeys .row span { flex: 1; font-size: .9rem; }
+details summary { cursor: pointer; font-family: var(--font-display); font-size: 1.15rem; }
+
+/* Export */
+#out { min-height: 5.5em; }
+.stats { font-size: .85rem; color: var(--muted); }
+ul.warnings { margin: 8px 0 0; padding-left: 18px; font-size: .88rem; }
+ul.warnings li.warn { color: var(--ember); }
+ol.steps { margin: 0; padding-left: 20px; }
+ol.steps li { margin-bottom: 6px; }
+.howto ul { margin: 6px 0 0; padding-left: 20px; }
+
+@media (max-width: 1000px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  aside { position: static; max-height: none; overflow: visible; }
+}
+/* Buttons stay at least ~60px wide: 12 in a row when there's room, else two rows of 6. */
+@container (max-width: 760px) {
+  .slots { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .slot { aspect-ratio: auto; min-height: 64px; }
+}
+@media (max-width: 640px) { h1 { font-size: 1.6rem; } }
+</style>
+<body>
+<div class="wrap">
+<header class="top">
+  <div>
+    <h1>Bar Planner</h1>
+    <p class="lede">Plan your action bars, macros and keybinds before you log in. Copy the plan string at the bottom, then in game type <code>/barplan</code>, paste it and press Apply. Needs the BarPlan addon from <code>addon/BarPlan</code>. EllesmereUI shows the result on its bars.</p>
+  </div>
+  <div class="controls">
+    <label>Plan name <input type="text" id="planName" placeholder="Dwarf Shaman leveling" size="22"></label>
+    <button class="chip" id="bindMode" aria-pressed="false" title="Hover a button and press a key">Keybind mode</button>
+    <span class="sep"></span>
+    <span class="muted" style="font-size:.85rem">Show:</span>
+    <span id="barChips" class="controls"></span>
+  </div>
+</header>
+
+<div class="layout">
+  <main id="main">
+    <div id="bindBanner"><b>Keybind mode.</b> Hover a button and press a key, a mouse button (middle, 4, 5) or scroll. Right-click a button to remove its key. Esc ends keybind mode.</div>
+    <div id="bars"></div>
+    <div class="legend">
+      <span><i style="background:var(--accent)"></i>Spell</span>
+      <span><i style="background:var(--book)"></i>Macro</span>
+      <span><i style="background:var(--item)"></i>Item</span>
+      <span><i style="background:var(--ember)"></i>Cleared by Apply</span>
+      <span>Grey buttons are left as they are. Drag a button onto another to swap them; drag a macro from the list onto a button to place it.</span>
+    </div>
+  </main>
+  <aside>
+    <section class="panel" id="editor"></section>
+    <section class="panel" id="macros"></section>
+  </aside>
+</div>
+
+<section class="panel" style="margin-top:24px">
+  <details id="otherDetails">
+    <summary>Other keybinds <span class="count" id="otherCount"></span></summary>
+    <p class="note">Movement and targeting. Leave a row empty to keep the game's key for it.</p>
+    <div class="otherkeys" id="otherKeys"></div>
+  </details>
+</section>
+
+<section class="panel">
+  <h2>Plan string</h2>
+  <p class="note" style="margin:0 0 8px">Copy this. In game: <code>/barplan</code>, paste with Ctrl+V, press <b>Check</b> to see what will change, then <b>Apply</b>.</p>
+  <textarea id="out" readonly spellcheck="false"></textarea>
+  <div class="row" style="margin-top:8px">
+    <button class="btn primary" id="copy">Copy plan string</button>
+    <span class="stats" id="stats"></span>
+  </div>
+  <ul class="warnings" id="warnings"></ul>
+</section>
+
+<section class="panel">
+  <h2>Load a plan</h2>
+  <p class="note" style="margin:0 0 8px">Paste a string from this page, or from <b>Export my bars</b> in <code>/barplan</code> to start from what you have in game. Loading replaces the current plan.</p>
+  <textarea id="in" rows="3" spellcheck="false" placeholder="BP1:..."></textarea>
+  <div class="row" style="margin-top:8px">
+    <button class="btn primary" id="load">Load</button>
+    <button class="btn" id="example">Load example (Dwarf Shaman)</button>
+    <button class="btn" id="reset">Start empty</button>
+    <span class="note" id="loadMsg"></span>
+  </div>
+</section>
+
+<section class="panel howto">
+  <h2>How to use it</h2>
+  <ol class="steps">
+    <li>Copy the <code>addon/BarPlan</code> folder into the game's <code>Interface/AddOns</code> folder (where EllesmereUI is) and enable BarPlan on the character screen.</li>
+    <li>Plan here. Click a button to choose a spell, macro or item. Turn on <b>Keybind mode</b> and hover a button, then press a key.</li>
+    <li>In game, out of combat: <code>/barplan</code>, paste, <b>Check</b>, <b>Apply</b>. Spells you haven't learned yet are skipped.</li>
+    <li>When you learn a planned spell later, BarPlan puts it on its planned button if that button is empty. Turn this off with the checkbox in the window or <code>/barplan auto</code>. <code>/barplan apply</code> runs the last plan again, which also updates spells to their newest rank.</li>
+  </ol>
+  <ul>
+    <li>Apply only touches buttons and keys that are in the plan. Each planned button or command ends up with exactly the key set here, so other keys on it are removed.</li>
+    <li>A key does one thing: giving <code>Q</code> to a spell takes it off Strafe Left. The planner warns about the game's default keys it replaces.</li>
+    <li>Turn on the bars you use in EllesmereUI's settings (or Edit Mode). Bars 6 to 8 need the client to have them.</li>
+    <li>Macros are matched by name. A macro that already exists with that name is updated. General macros are shared by all characters on the account; tick <i>Character-specific</i> for the 18 per-character ones.</li>
+    <li>Use spell names as they appear in your spellbook. Add a rank in brackets, like <code>Healing Wave(Rank 1)</code>, to pin a lower rank (needs <i>Show All Spell Ranks</i> in the spellbook).</li>
+    <li>BarPlan stores the last plan in its SavedVariables. On Forever those only stick between sessions if saving works for you (see ForeverSVFix / EllesmereUI Forever Fix). Applying works either way.</li>
+  </ul>
+</section>
+</div>
+
+<datalist id="spellList"></datalist>
+<datalist id="macroList"></datalist>
+
+<script>
+"use strict";
+
+// ---- Bars, slots and binding commands. Keep in sync with addon/BarPlan/BarPlan.lua ----
+// first = first action slot, bind = binding command prefix (button n is prefix + n).
+// The slot numbers and commands are the ones EllesmereUI's bars use.
+const BARS = [
+  { key: "b1", name: "Bar 1", sub: "main bar", first: 1,   bind: "ACTIONBUTTON" },
+  { key: "b2", name: "Bar 2", first: 61,  bind: "MULTIACTIONBAR1BUTTON" },
+  { key: "b3", name: "Bar 3", first: 49,  bind: "MULTIACTIONBAR2BUTTON" },
+  { key: "b4", name: "Bar 4", first: 25,  bind: "MULTIACTIONBAR3BUTTON" },
+  { key: "b5", name: "Bar 5", first: 37,  bind: "MULTIACTIONBAR4BUTTON" },
+  { key: "b6", name: "Bar 6", first: 145, bind: "MULTIACTIONBAR5BUTTON" },
+  { key: "b7", name: "Bar 7", first: 157, bind: "MULTIACTIONBAR6BUTTON" },
+  { key: "b8", name: "Bar 8", first: 169, bind: "MULTIACTIONBAR7BUTTON" },
+  { key: "s1", name: "Bar 1, stance 1", sub: "Warrior Battle, Druid Cat, Rogue Stealth", first: 73,  bind: "ACTIONBUTTON", shared: true },
+  { key: "s2", name: "Bar 1, stance 2", sub: "Warrior Defensive", first: 85,  bind: "ACTIONBUTTON", shared: true },
+  { key: "s3", name: "Bar 1, stance 3", sub: "Warrior Berserker, Druid Bear", first: 97,  bind: "ACTIONBUTTON", shared: true },
+  { key: "s4", name: "Bar 1, stance 4", sub: "Druid Moonkin", first: 109, bind: "ACTIONBUTTON", shared: true },
+];
+const OTHER = [
+  ["MOVEFORWARD", "Move forward"], ["MOVEBACKWARD", "Move backward"], ["TURNLEFT", "Turn left"], ["TURNRIGHT", "Turn right"],
+  ["STRAFELEFT", "Strafe left"], ["STRAFERIGHT", "Strafe right"], ["JUMP", "Jump"], ["TOGGLEAUTORUN", "Autorun"],
+  ["SITORSTAND", "Sit / stand"], ["TOGGLESHEATH", "Sheathe weapon"], ["TARGETNEARESTENEMY", "Target nearest enemy"],
+  ["TARGETPREVIOUSENEMY", "Target previous enemy"], ["TARGETNEARESTFRIEND", "Target nearest friend"], ["ASSISTTARGET", "Assist target"],
+  ["INTERACTTARGET", "Interact with target"], ["TARGETSELF", "Target self"], ["TARGETPARTYMEMBER1", "Target party member 1"],
+  ["TARGETPARTYMEMBER2", "Target party member 2"], ["TARGETPARTYMEMBER3", "Target party member 3"], ["TARGETPARTYMEMBER4", "Target party member 4"],
+  ["OPENALLBAGS", "Open all bags"], ["TOGGLEWORLDMAP", "World map"],
+];
+const OTHER_LABEL = Object.fromEntries(OTHER);
+const BAR1_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="];
+
+// What a key does in the game's default bindings, to warn when the plan takes it.
+const GAME_DEFAULTS = {
+  W: "Move forward", S: "Move backward", A: "Turn left", D: "Turn right", Q: "Strafe left", E: "Strafe right",
+  SPACE: "Jump", X: "Sit / stand", Z: "Sheathe weapon", TAB: "Target nearest enemy", ENTER: "Open chat",
+  "/": "Chat command", R: "Reply to whisper", B: "Open bags", C: "Character window", P: "Spellbook",
+  N: "Talents", L: "Quest log", M: "World map", O: "Social", K: "Skills", U: "Reputation", H: "Honor",
+  I: "Group finder", V: "Enemy nameplates", T: "Attack", G: "Next pet", NUMLOCK: "Autorun",
+  F1: "Target self", F2: "Target party member 1", F3: "Target party member 2", F4: "Target party member 3",
+  F5: "Target party member 4", "SHIFT-UP": "Previous action page", "SHIFT-DOWN": "Next action page",
+  "ALT-Z": "Hide the UI", UP: "Move forward", DOWN: "Move backward", LEFT: "Turn left", RIGHT: "Turn right",
+  PRINTSCREEN: "Screenshot",
+};
+for (let i = 1; i <= 6; i++) GAME_DEFAULTS["SHIFT-" + i] = "Action page " + i;
+for (let i = 1; i <= 10; i++) GAME_DEFAULTS["CTRL-" + (i % 10)] = "Pet bar button " + i;
+for (let i = 1; i <= 10; i++) GAME_DEFAULTS["CTRL-F" + i] = "Stance button " + i;
+BAR1_KEYS.forEach((k, i) => { GAME_DEFAULTS[k] = "Bar 1 button " + (i + 1); });
+
+const SPELLS = [
+  // Shaman (vanilla list; Forever may rename or add some)
+  "Lightning Bolt", "Chain Lightning", "Earth Shock", "Flame Shock", "Frost Shock", "Purge", "Lightning Shield",
+  "Healing Wave", "Lesser Healing Wave", "Chain Heal", "Ancestral Spirit", "Cure Poison", "Cure Disease",
+  "Rockbiter Weapon", "Flametongue Weapon", "Frostbrand Weapon", "Windfury Weapon",
+  "Stoneskin Totem", "Earthbind Totem", "Stoneclaw Totem", "Strength of Earth Totem", "Tremor Totem",
+  "Searing Totem", "Fire Nova Totem", "Magma Totem", "Frost Resistance Totem", "Flametongue Totem",
+  "Healing Stream Totem", "Mana Spring Totem", "Poison Cleansing Totem", "Disease Cleansing Totem", "Fire Resistance Totem",
+  "Grounding Totem", "Nature Resistance Totem", "Windfury Totem", "Sentry Totem", "Windwall Totem", "Grace of Air Totem", "Tranquil Air Totem",
+  "Ghost Wolf", "Astral Recall", "Far Sight", "Water Breathing", "Water Walking",
+  "Elemental Mastery", "Nature's Swiftness", "Mana Tide Totem", "Stormstrike",
+  // Dwarf and general
+  "Stoneform", "Find Treasure", "Find Minerals", "Find Herbs", "Attack", "Shoot", "First Aid", "Cooking", "Fishing", "Mining", "Smelting",
+];
+
+const ICON_DEFAULT_HINT = "empty = question mark (shows the spell)";
+const MAX_MACRO_BYTES = 255, MAX_MACRO_NAME = 16, MAX_GENERAL = 120, MAX_CHAR = 18;
+const STORE = "barplanner.v1";
+
+// ---- State ----
+let state = emptyState();
+let sel = null;          // selected slot number
+let selMacro = null;     // index into state.macros
+let bindMode = false;
+let hoverSlot = null;
+let capture = null;      // command waiting for a key from "Set key"
+
+function emptyState() {
+  const binds = {};
+  BAR1_KEYS.forEach((k, i) => { binds["ACTIONBUTTON" + (i + 1)] = k; });
+  return { name: "", shown: ["b1", "b2", "b3", "b4", "b5"], slots: {}, macros: [], binds };
+}
+
+function save() {
+  try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { /* storage blocked: the plan string is the backup */ }
+}
+function restore() {
+  try {
+    const raw = localStorage.getItem(STORE);
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s && s.slots && s.binds && Array.isArray(s.macros)) state = Object.assign(emptyState(), s);
+    }
+  } catch (e) { /* ignore */ }
+}
+
+// ---- Helpers ----
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const bytes = (s) => new TextEncoder().encode(s).length;
+
+function slotInfo(slot) {
+  for (const bar of BARS) {
+    if (slot >= bar.first && slot < bar.first + 12) {
+      const index = slot - bar.first;
+      return { bar, index, command: bar.bind + (index + 1) };
+    }
+  }
+  return null;
+}
+function commandLabel(cmd) {
+  if (OTHER_LABEL[cmd]) return OTHER_LABEL[cmd];
+  for (const bar of BARS) {
+    if (bar.shared) continue;
+    const m = cmd.match(/^(.*?)(\d+)$/);
+    if (m && m[1] === bar.bind) return bar.name + " button " + m[2];
+  }
+  return cmd;
+}
+function shortKey(k) {
+  return k.replace("ALT-", "a").replace("CTRL-", "c").replace("SHIFT-", "s").replace("META-", "m")
+    .replace("MOUSEWHEELUP", "WU").replace("MOUSEWHEELDOWN", "WD").replace(/BUTTON(\d+)$/, "M$1")
+    .replace("NUMPAD", "N").replace("BACKSPACE", "Bs").replace("SPACE", "Spc").replace("PAGEUP", "PU")
+    .replace("PAGEDOWN", "PD").replace("INSERT", "Ins").replace("DELETE", "Del").replace("CAPSLOCK", "Caps");
+}
+function macroUses(name) {
+  const lower = name.toLowerCase();
+  return Object.entries(state.slots)
+    .filter(([, s]) => s.kind === "macro" && s.value.toLowerCase() === lower)
+    .map(([slot]) => { const i = slotInfo(+slot); return i ? i.bar.name + " #" + (i.index + 1) : "slot " + slot; });
+}
+function findMacro(name) {
+  const lower = (name || "").toLowerCase();
+  return state.macros.findIndex((m) => m.name.toLowerCase() === lower);
+}
+
+// ---- Keys ----
+const CODE_KEYS = {
+  Space: "SPACE", Tab: "TAB", Enter: "ENTER", NumpadEnter: "ENTER", Backspace: "BACKSPACE", Insert: "INSERT",
+  Delete: "DELETE", Home: "HOME", End: "END", PageUp: "PAGEUP", PageDown: "PAGEDOWN", ArrowUp: "UP",
+  ArrowDown: "DOWN", ArrowLeft: "LEFT", ArrowRight: "RIGHT", Backquote: "`", Minus: "-", Equal: "=",
+  BracketLeft: "[", BracketRight: "]", Backslash: "\\", IntlBackslash: "\\", Semicolon: ";", Quote: "'", Comma: ",",
+  Period: ".", Slash: "/", NumpadAdd: "NUMPADPLUS", NumpadSubtract: "NUMPADMINUS", NumpadMultiply: "NUMPADMULTIPLY",
+  NumpadDivide: "NUMPADDIVIDE", NumpadDecimal: "NUMPADDECIMAL", CapsLock: "CAPSLOCK", NumLock: "NUMLOCK",
+  PrintScreen: "PRINTSCREEN", ScrollLock: "SCROLLLOCK", Pause: "PAUSE",
+};
+function mods(e) {
+  return (e.altKey ? "ALT-" : "") + (e.ctrlKey ? "CTRL-" : "") + (e.shiftKey ? "SHIFT-" : "") + (e.metaKey ? "META-" : "");
+}
+function keyFromEvent(e) {
+  const c = e.code;
+  let k = CODE_KEYS[c];
+  if (!k) {
+    let m;
+    if ((m = c.match(/^Key([A-Z])$/))) k = m[1];
+    else if ((m = c.match(/^Digit(\d)$/))) k = m[1];
+    else if ((m = c.match(/^Numpad(\d)$/))) k = "NUMPAD" + m[1];
+    else if (/^F\d{1,2}$/.test(c)) k = c;
+  }
+  return k ? mods(e) + k : null;
+}
+function keyFromMouse(e) {
+  const b = { 1: "BUTTON3", 3: "BUTTON4", 4: "BUTTON5" }[e.button];
+  return b ? mods(e) + b : null;
+}
+function normalizeKey(text) {
+  // Accepts "shift-1", "Shift+1", "ctrl alt q" and puts modifiers in the game's order.
+  const parts = text.toUpperCase().trim().split(/[-+\s]+(?=.)/).filter(Boolean);
+  if (!parts.length) return "";
+  const key = parts.pop();
+  const has = (m) => parts.includes(m);
+  return (has("ALT") ? "ALT-" : "") + ((has("CTRL") || has("CONTROL")) ? "CTRL-" : "") + (has("SHIFT") ? "SHIFT-" : "") + (has("META") || has("CMD") ? "META-" : "") + key;
+}
+function setBind(cmd, key) {
+  if (!key) { delete state.binds[cmd]; return; }
+  for (const [c, k] of Object.entries(state.binds)) if (k === key && c !== cmd) delete state.binds[c];
+  state.binds[cmd] = key;
+}
+function keyNotes(cmd) {
+  const key = state.binds[cmd];
+  if (!key) return "";
+  const def = GAME_DEFAULTS[key];
+  const own = cmd.startsWith("ACTIONBUTTON") && def === "Bar 1 button " + cmd.slice(12);
+  if (def && !own && def !== OTHER_LABEL[cmd]) return `<p class="note warn">Takes ${esc(key)} off its game default: ${esc(def)}.</p>`;
+  return "";
+}
+
+// ---- Rendering ----
+function render() {
+  renderChips();
+  renderBars();
+  renderEditor();
+  renderMacros();
+  renderOther();
+  renderExport();
+  save();
+}
+function refresh() { // after typing: everything except the editor that has focus
+  renderChips(); renderBars(); renderMacroList(); renderOther(); renderExport(); save();
+}
+
+function barCount(bar, st = state) {
+  let n = 0;
+  for (let i = 0; i < 12; i++) if (st.slots[bar.first + i]) n++;
+  return n;
+}
+function renderChips() {
+  $("barChips").innerHTML = BARS.map((b) => {
+    const n = barCount(b);
+    const label = b.shared ? "Stance " + b.key.slice(1) : b.name.replace("Bar ", "");
+    return `<button class="chip" data-bar="${b.key}" aria-pressed="${state.shown.includes(b.key)}" title="${esc(b.name + (b.sub ? " (" + b.sub + ")" : ""))}">${esc(b.shared ? label : "Bar " + label)}${n ? ` <span class="n">${n}</span>` : ""}</button>`;
+  }).join("");
+}
+
+function renderBars() {
+  $("main").classList.toggle("binding", bindMode);
+  $("bars").innerHTML = BARS.filter((b) => state.shown.includes(b.key)).map((bar) => {
+    const cells = [];
+    for (let i = 0; i < 12; i++) {
+      const slot = bar.first + i;
+      const s = state.slots[slot];
+      const key = state.binds[bar.bind + (i + 1)];
+      const kind = s ? s.kind : "";
+      const label = !s ? "" : s.kind === "clear" ? "clear" : s.value || "?";
+      cells.push(`<div class="slot${kind ? " k-" + kind : ""}${sel === slot ? " sel" : ""}" role="button" tabindex="0" data-slot="${slot}" draggable="${s ? "true" : "false"}" title="${esc(bar.name + " button " + (i + 1) + (s ? ": " + label : "") + (key ? " [" + key + "]" : ""))}"><span class="num">${i + 1}</span>${key ? `<span class="key">${esc(shortKey(key))}</span>` : ""}<span class="name">${esc(label)}</span></div>`);
+    }
+    return `<div class="barrow"><div class="barhead"><h3>${esc(bar.name)}</h3><small>${esc(bar.sub ? bar.sub + " · " : "")}slots ${bar.first}–${bar.first + 11}${bar.shared ? " · keys shared with Bar 1" : ""}</small></div><div class="slots">${cells.join("")}</div></div>`;
+  }).join("") || `<p class="muted">No bars shown. Pick some above.</p>`;
+}
+
+function keyRow(cmd) {
+  const key = state.binds[cmd] || "";
+  const cap = capture === cmd;
+  return `<div class="row">
+      <input type="text" class="keyin${cap ? " capturing" : ""}" data-cmd="${cmd}" value="${esc(cap ? "press a key…" : key)}" placeholder="no key" spellcheck="false" ${cap ? "readonly" : ""}>
+      <button class="btn" data-setkey="${cmd}">${cap ? "Cancel" : "Set key"}</button>
+      ${key ? `<button class="btn" data-delkey="${cmd}" title="Remove key">×</button>` : ""}
+    </div>`;
+}
+
+function renderEditor() {
+  const el = $("editor");
+  if (sel == null || !slotInfo(sel)) {
+    el.innerHTML = `<h2>Button</h2><p class="muted" style="margin:0">Click a button on a bar to choose what goes on it and which key it gets.</p>`;
+    return;
+  }
+  const info = slotInfo(sel);
+  const s = state.slots[sel] || { kind: "", value: "" };
+  const kinds = [["", "Leave alone"], ["spell", "Spell"], ["macro", "Macro"], ["item", "Item"], ["clear", "Clear"]];
+  let body = "";
+  if (s.kind === "spell") {
+    body = `<label class="field">Spell name<input type="text" id="val" list="spellList" value="${esc(s.value)}" placeholder="Lightning Bolt, or Healing Wave(Rank 1)" spellcheck="false"></label>`;
+  } else if (s.kind === "macro") {
+    body = `<label class="field">Macro name<input type="text" id="val" list="macroList" value="${esc(s.value)}" placeholder="pick or type a macro name" spellcheck="false"></label>
+      <div id="macroActions">${macroActions(s.value)}</div>`;
+  } else if (s.kind === "item") {
+    body = `<label class="field">Item name or ID<input type="text" id="val" value="${esc(s.value)}" placeholder="Hearthstone, or item:6948" spellcheck="false"></label>
+      <p class="note" style="margin-top:-6px">Items by name are found once they are in your bags. <code>item:ID</code> works even before that.</p>`;
+  } else if (s.kind === "clear") {
+    body = `<p class="note">Apply removes whatever is on this button.</p>`;
+  } else {
+    body = `<p class="note">Apply doesn't touch this button. Its key is still set if you give it one.</p>`;
+  }
+  el.innerHTML = `<h2>${esc(info.bar.name)} · button ${info.index + 1}</h2>
+    <p class="meta">slot ${sel} · ${info.command}</p>
+    <div class="seg" role="radiogroup" aria-label="What goes on this button">${kinds.map(([k, l]) => `<button class="chip" role="radio" data-kind="${k}" aria-pressed="${s.kind === k}" aria-checked="${s.kind === k}">${l}</button>`).join("")}</div>
+    ${body}
+    <div class="field" style="margin:12px 0 0">Key${keyRow(info.command)}</div>
+    ${keyNotes(info.command)}
+    ${info.bar.shared ? `<p class="note">Stance pages use Bar 1's keys, so this key is also Bar 1 button ${info.index + 1}'s key.</p>` : ""}`;
+}
+
+function macroActions(name) {
+  if (!name) return "";
+  if (findMacro(name) >= 0) return `<div class="row"><button class="btn" id="editMacro">Edit this macro</button></div>`;
+  return `<div class="row"><button class="btn" id="createMacro">Create macro “${esc(name)}”</button></div>
+    <p class="note">Not in the planner's macro list, so it has to exist in the game already.</p>`;
+}
+function renderMacroList() {
+  const nGen = state.macros.filter((m) => !m.perChar).length;
+  const nChar = state.macros.length - nGen;
+  $("macroCount").textContent = `${nGen} general · ${nChar} character`;
+  $("mlist").innerHTML = state.macros.map((m, i) => {
+    const uses = macroUses(m.name);
+    return `<li draggable="true" data-midx="${i}" class="${selMacro === i ? "sel" : ""}"><span class="mname">${esc(m.name || "(no name)")}</span><small>${uses.length ? esc(uses.join(", ")) : "not on a bar"}</small></li>`;
+  }).join("") || `<li class="muted" style="cursor:default">No macros yet.</li>`;
+  $("macroList").innerHTML = state.macros.map((m) => `<option value="${esc(m.name)}">`).join("");
+}
+function renderMacros() {
+  const el = $("macros");
+  const m = selMacro != null ? state.macros[selMacro] : null;
+  el.innerHTML = `<h2>Macros <span class="count" id="macroCount"></span></h2>
+    <ul class="mlist" id="mlist"></ul>
+    <div class="row"><button class="btn" id="addMacro">New macro</button>${m && sel != null ? `<button class="btn" id="putMacro">Put on selected button</button>` : ""}</div>
+    ${m ? `<div style="margin-top:12px">
+      <label class="field">Name<input type="text" id="mName" value="${esc(m.name)}" maxlength="${MAX_MACRO_NAME}" spellcheck="false"></label>
+      <label class="field">Icon<input type="text" id="mIcon" value="${esc(m.icon)}" placeholder="${ICON_DEFAULT_HINT}" spellcheck="false"></label>
+      <label class="row" style="font-size:.85rem;color:var(--muted);margin-bottom:10px"><input type="checkbox" id="mChar" ${m.perChar ? "checked" : ""}> Character-specific</label>
+      <label class="field">Macro text<textarea id="mBody" rows="7" spellcheck="false">${esc(m.body)}</textarea><span class="counter" id="mCounter"></span></label>
+      <div class="row"><button class="btn" id="delMacro">Delete macro</button></div>
+    </div>` : ""}`;
+  renderMacroList();
+  updateCounter();
+}
+function updateCounter() {
+  const c = $("mCounter");
+  if (!c || selMacro == null) return;
+  const n = bytes(state.macros[selMacro].body);
+  c.textContent = `${n} / ${MAX_MACRO_BYTES}`;
+  c.classList.toggle("over", n > MAX_MACRO_BYTES);
+}
+
+function renderOther() {
+  const set = OTHER.filter(([c]) => state.binds[c]).length;
+  $("otherCount").textContent = set ? `(${set} set)` : "";
+  $("otherKeys").innerHTML = OTHER.map(([cmd, label]) => `<div><div class="row"><span>${esc(label)}</span>${keyRow(cmd)}</div>${keyNotes(cmd)}</div>`).join("");
+}
+
+// ---- Plan string (same format as BarPlan.lua) ----
+const escField = (s) => String(s ?? "").replace(/\\/g, "\\\\").replace(/\t/g, "\\t").replace(/\r/g, "").replace(/\n/g, "\\n");
+const unescField = (s) => String(s ?? "").replace(/\\(.)/g, (m, c) => (c === "n" ? "\n" : c === "t" ? "\t" : c === "\\" ? "\\" : m));
+function toB64(text) {
+  let bin = "";
+  for (const b of new TextEncoder().encode(text)) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+function fromB64(b64) {
+  const bin = atob(b64.replace(/[^A-Za-z0-9+/]/g, ""));
+  return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+}
+function serialize() {
+  const lines = ["BARPLAN\t1"];
+  if (state.name) lines.push("NAME\t" + escField(state.name));
+  for (const m of state.macros) {
+    if (m.name) lines.push(["MACRO", escField(m.name), escField(m.icon), m.perChar ? "1" : "0", escField(m.body)].join("\t"));
+  }
+  Object.keys(state.slots).map(Number).sort((a, b) => a - b).forEach((slot) => {
+    const s = state.slots[slot];
+    if (s.kind === "clear" || s.value) lines.push(["SLOT", slot, s.kind, escField(s.kind === "clear" ? "" : s.value)].join("\t"));
+  });
+  for (const [cmd, key] of Object.entries(state.binds)) if (key) lines.push(["BIND", key, cmd].join("\t"));
+  return "BP1:" + toB64(lines.join("\n"));
+}
+function parse(text) {
+  text = text.trim();
+  if (!text.startsWith("BP1:")) throw new Error("That isn't a plan string. It should start with BP1:");
+  let raw;
+  try { raw = fromB64(text.slice(4)); } catch (e) { throw new Error("The plan string is damaged. Copy it again."); }
+  const s = { name: "", shown: [], slots: {}, macros: [], binds: {} };
+  let version = null;
+  for (const line of raw.split("\n")) {
+    const f = line.replace(/\r$/, "").split("\t");
+    if (f[0] === "BARPLAN") version = +f[1];
+    else if (f[0] === "NAME") s.name = unescField(f[1]);
+    else if (f[0] === "MACRO" && f[1]) s.macros.push({ name: unescField(f[1]), icon: unescField(f[2]), perChar: f[3] === "1", body: unescField(f[4]) });
+    else if (f[0] === "SLOT" && slotInfo(+f[1]) && ["spell", "macro", "item", "clear"].includes(f[2])) s.slots[+f[1]] = { kind: f[2], value: unescField(f[3]).trim() };
+    else if (f[0] === "BIND" && f[1] && f[2] && !Object.values(s.binds).includes(f[1]) && !s.binds[f[2]]) s.binds[f[2]] = f[1];
+  }
+  if (!version) throw new Error("The plan string is damaged. Copy it again.");
+  if (version > 1) throw new Error("This plan was made by a newer planner.");
+  s.shown = BARS.filter((b) => b.key === "b1" || barCount(b, s)).map((b) => b.key);
+  return s;
+}
+
+function warnings() {
+  const out = [];
+  const names = {};
+  let nGen = 0, nChar = 0;
+  for (const m of state.macros) {
+    if (!m.name) { out.push(["warn", "A macro has no name and won't be exported."]); continue; }
+    const low = m.name.toLowerCase();
+    if (names[low]) out.push(["warn", `Two macros are called “${m.name}”. Only one survives in game.`]);
+    names[low] = true;
+    if (m.name.length > MAX_MACRO_NAME) out.push(["warn", `Macro “${m.name}” has a name longer than ${MAX_MACRO_NAME} characters.`]);
+    const n = bytes(m.body);
+    if (n > MAX_MACRO_BYTES) out.push(["warn", `Macro “${m.name}” is ${n} characters. The game keeps the first ${MAX_MACRO_BYTES}.`]);
+    if (!m.body.trim()) out.push(["warn", `Macro “${m.name}” is empty.`]);
+    m.perChar ? nChar++ : nGen++;
+  }
+  if (nGen > MAX_GENERAL) out.push(["warn", `${nGen} general macros; the game allows ${MAX_GENERAL}.`]);
+  if (nChar > MAX_CHAR) out.push(["warn", `${nChar} character macros; the game allows ${MAX_CHAR}.`]);
+  const missing = new Set();
+  for (const [slot, s] of Object.entries(state.slots)) {
+    if (s.kind === "macro" && s.value && findMacro(s.value) < 0) missing.add(s.value);
+    if (s.kind !== "clear" && !s.value) { const i = slotInfo(+slot); out.push(["warn", `${i.bar.name} button ${i.index + 1} has a type but no ${s.kind} name, so it's skipped.`]); }
+  }
+  for (const name of missing) out.push(["", `Macro “${name}” isn't in the macro list, so it has to exist in the game already.`]);
+  for (const bar of BARS) if (!state.shown.includes(bar.key) && barCount(bar)) out.push(["", `${bar.name} is hidden but has ${barCount(bar)} buttons planned. They're in the string too.`]);
+  return out;
+}
+
+function renderExport() {
+  $("out").value = serialize();
+  const nSlots = Object.values(state.slots).filter((s) => s.kind === "clear" || s.value).length;
+  const nKeys = Object.values(state.binds).filter(Boolean).length;
+  const named = state.macros.filter((m) => m.name).length;
+  $("stats").textContent = `${nSlots} buttons · ${named} macros · ${nKeys} keys`;
+  $("warnings").innerHTML = warnings().map(([cls, t]) => `<li class="${cls}">${esc(t)}</li>`).join("");
+  if ($("planName").value !== state.name) $("planName").value = state.name;
+}
+
+// ---- Example plan ----
+function examplePlan() {
+  const s = emptyState();
+  s.name = "Dwarf Shaman leveling (example)";
+  s.shown = ["b1", "b2", "b3"];
+  s.macros = [
+    { name: "Heal", icon: "", perChar: false, body: "#showtooltip Healing Wave\n/cast [@mouseover,help,nodead][help,nodead][@player] Healing Wave" },
+    { name: "Heal R1", icon: "", perChar: false, body: "#showtooltip Healing Wave\n/cast [@mouseover,help,nodead][help,nodead][@player] Healing Wave(Rank 1)" },
+    { name: "Kick", icon: "", perChar: false, body: "#showtooltip Earth Shock\n/stopcasting\n/cast Earth Shock" },
+  ];
+  const put = (bar, items) => {
+    const b = BARS.find((x) => x.key === bar);
+    items.forEach((it, i) => { if (it) s.slots[b.first + i] = { kind: it[0], value: it[1] }; });
+  };
+  put("b1", [["spell", "Lightning Bolt"], ["macro", "Kick"], ["spell", "Flame Shock"], ["spell", "Frost Shock"], ["macro", "Heal"], ["macro", "Heal R1"],
+    ["spell", "Lightning Shield"], ["spell", "Purge"], ["spell", "Chain Lightning"], ["spell", "Lesser Healing Wave"], ["spell", "Attack"], ["spell", "Stoneform"]]);
+  put("b2", [["spell", "Stoneskin Totem"], ["spell", "Strength of Earth Totem"], ["spell", "Searing Totem"], ["spell", "Healing Stream Totem"],
+    ["spell", "Mana Spring Totem"], ["spell", "Earthbind Totem"], ["spell", "Tremor Totem"], ["spell", "Grounding Totem"], ["spell", "Windfury Totem"], ["spell", "Fire Nova Totem"]]);
+  put("b3", [["spell", "Ghost Wolf"], ["spell", "Rockbiter Weapon"], ["spell", "Flametongue Weapon"], ["spell", "Windfury Weapon"], ["spell", "Cure Poison"],
+    ["spell", "Cure Disease"], ["spell", "Water Walking"], ["spell", "Ancestral Spirit"], ["spell", "Astral Recall"], ["item", "Hearthstone"], ["spell", "Find Treasure"], ["spell", "First Aid"]]);
+  ["SHIFT-1", "SHIFT-2", "SHIFT-3", "SHIFT-4", "SHIFT-5", "SHIFT-6", "SHIFT-Q", "SHIFT-E", "BUTTON4", "BUTTON5"]
+    .forEach((k, i) => { s.binds["MULTIACTIONBAR1BUTTON" + (i + 1)] = k; });
+  ["CTRL-Q", "CTRL-1", "CTRL-2", "CTRL-3", "CTRL-4", "CTRL-5"].forEach((k, i) => { s.binds["MULTIACTIONBAR2BUTTON" + (i + 1)] = k; });
+  return s;
+}
+
+// ---- Events ----
+function isTyping(t) { return t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT"); }
+
+function setBindMode(on) {
+  bindMode = on;
+  $("bindMode").setAttribute("aria-pressed", String(on));
+  renderBars();
+}
+function startCapture(cmd) { capture = capture === cmd ? null : cmd; renderEditor(); renderOther(); }
+function finishCapture(key) {
+  if (key) setBind(capture, key);
+  capture = null;
+  render();
+}
+
+$("barChips").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-bar]");
+  if (!b) return;
+  const k = b.dataset.bar;
+  state.shown = state.shown.includes(k) ? state.shown.filter((x) => x !== k) : BARS.map((x) => x.key).filter((x) => x === k || state.shown.includes(x));
+  render();
+});
+$("bindMode").addEventListener("click", () => setBindMode(!bindMode));
+$("planName").addEventListener("input", (e) => { state.name = e.target.value; renderExport(); save(); });
+
+const bars = $("bars");
+bars.addEventListener("click", (e) => {
+  const b = e.target.closest(".slot");
+  if (!b) return;
+  sel = +b.dataset.slot;
+  renderBars(); renderEditor(); renderMacros();
+});
+bars.addEventListener("keydown", (e) => {
+  const b = e.target.closest(".slot");
+  if (!b || bindMode || (e.key !== "Enter" && e.key !== " ")) return;
+  e.preventDefault();
+  b.click();
+});
+bars.addEventListener("mouseover", (e) => { const b = e.target.closest(".slot"); hoverSlot = b ? +b.dataset.slot : null; });
+bars.addEventListener("mouseleave", () => { hoverSlot = null; });
+bars.addEventListener("contextmenu", (e) => {
+  const b = e.target.closest(".slot");
+  if (!b || !bindMode) return;
+  e.preventDefault();
+  setBind(slotInfo(+b.dataset.slot).command, null);
+  render();
+});
+bars.addEventListener("mousedown", (e) => {
+  const b = e.target.closest(".slot");
+  if (!b || !bindMode) return;
+  const k = keyFromMouse(e);
+  if (k) { e.preventDefault(); setBind(slotInfo(+b.dataset.slot).command, k); render(); }
+});
+bars.addEventListener("mouseup", (e) => { if (bindMode && e.button > 2) e.preventDefault(); }); // keep mouse 4/5 from going back/forward
+bars.addEventListener("wheel", (e) => {
+  const b = e.target.closest(".slot");
+  if (!b || !bindMode) return;
+  e.preventDefault();
+  setBind(slotInfo(+b.dataset.slot).command, mods(e) + (e.deltaY < 0 ? "MOUSEWHEELUP" : "MOUSEWHEELDOWN"));
+  render();
+}, { passive: false });
+
+// Drag: swap two buttons, or drop a macro from the list onto a button.
+let dragFrom = null;
+document.addEventListener("dragstart", (e) => {
+  const slot = e.target.closest && e.target.closest(".slot");
+  const mac = e.target.closest && e.target.closest("[data-midx]");
+  if (slot) dragFrom = { slot: +slot.dataset.slot };
+  else if (mac) dragFrom = { macro: state.macros[+mac.dataset.midx].name };
+  else return;
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", "barplan");
+});
+bars.addEventListener("dragover", (e) => {
+  const b = e.target.closest(".slot");
+  if (!b || !dragFrom) return;
+  e.preventDefault();
+  bars.querySelectorAll(".drop").forEach((x) => x.classList.remove("drop"));
+  b.classList.add("drop");
+});
+bars.addEventListener("dragleave", (e) => { const b = e.target.closest(".slot"); if (b) b.classList.remove("drop"); });
+bars.addEventListener("drop", (e) => {
+  const b = e.target.closest(".slot");
+  if (!b || !dragFrom) return;
+  e.preventDefault();
+  const to = +b.dataset.slot;
+  if (dragFrom.slot != null && dragFrom.slot !== to) {
+    const a = state.slots[dragFrom.slot], c = state.slots[to];
+    if (c) state.slots[dragFrom.slot] = c; else delete state.slots[dragFrom.slot];
+    if (a) state.slots[to] = a; else delete state.slots[to];
+  } else if (dragFrom.macro) {
+    state.slots[to] = { kind: "macro", value: dragFrom.macro };
+  }
+  dragFrom = null;
+  sel = to;
+  render();
+});
+document.addEventListener("dragend", () => { dragFrom = null; bars.querySelectorAll(".drop").forEach((x) => x.classList.remove("drop")); });
+
+// Button editor
+$("editor").addEventListener("click", (e) => {
+  const t = e.target;
+  if (t.dataset.kind != null && sel != null) {
+    const old = state.slots[sel];
+    if (t.dataset.kind === "") delete state.slots[sel];
+    else state.slots[sel] = { kind: t.dataset.kind, value: old && old.kind === t.dataset.kind ? old.value : "" };
+    render();
+    const v = $("val"); if (v) v.focus();
+  } else if (t.id === "editMacro") {
+    selMacro = findMacro(state.slots[sel].value); renderMacros();
+    $("mBody") && $("mBody").focus();
+  } else if (t.id === "createMacro") {
+    state.macros.push({ name: state.slots[sel].value.slice(0, MAX_MACRO_NAME), icon: "", perChar: false, body: "#showtooltip\n" });
+    state.slots[sel].value = state.slots[sel].value.slice(0, MAX_MACRO_NAME);
+    selMacro = state.macros.length - 1;
+    render();
+    $("mBody") && $("mBody").focus();
+  }
+});
+$("editor").addEventListener("input", (e) => {
+  if (e.target.id === "val" && sel != null && state.slots[sel]) {
+    state.slots[sel].value = e.target.value;
+    const ma = $("macroActions");
+    if (ma) ma.innerHTML = macroActions(e.target.value);
+    refresh();
+  }
+});
+
+// Key fields (button editor and "Other keybinds")
+function onKeyFieldClick(e) {
+  const t = e.target;
+  if (t.dataset.setkey) startCapture(t.dataset.setkey);
+  else if (t.dataset.delkey) { setBind(t.dataset.delkey, null); render(); }
+}
+function onKeyFieldChange(e) {
+  const t = e.target;
+  if (!t.classList.contains("keyin") || capture) return;
+  const cmd = t.dataset.cmd;
+  const key = normalizeKey(t.value) || null;
+  const takenElsewhere = key && Object.entries(state.binds).some(([c, k]) => k === key && c !== cmd);
+  setBind(cmd, key);
+  t.value = key || "";
+  if (takenElsewhere) render(); else { renderChips(); renderBars(); renderExport(); save(); }
+}
+for (const id of ["editor", "otherKeys"]) {
+  $(id).addEventListener("click", onKeyFieldClick);
+  $(id).addEventListener("change", onKeyFieldChange);
+}
+
+// Macros
+$("macros").addEventListener("click", (e) => {
+  const t = e.target;
+  const li = t.closest("[data-midx]");
+  if (li) { selMacro = +li.dataset.midx; renderMacros(); return; }
+  if (t.id === "addMacro") {
+    let n = 1;
+    while (findMacro("Macro " + n) >= 0) n++;
+    state.macros.push({ name: "Macro " + n, icon: "", perChar: false, body: "#showtooltip\n" });
+    selMacro = state.macros.length - 1;
+    render();
+    $("mName").select();
+  } else if (t.id === "delMacro" && selMacro != null) {
+    const m = state.macros[selMacro];
+    const uses = macroUses(m.name);
+    if (uses.length && !confirm(`“${m.name}” is on ${uses.join(", ")}. Delete it anyway? Those buttons will expect the macro to exist in game.`)) return;
+    state.macros.splice(selMacro, 1);
+    selMacro = null;
+    render();
+  } else if (t.id === "putMacro" && selMacro != null && sel != null) {
+    state.slots[sel] = { kind: "macro", value: state.macros[selMacro].name };
+    render();
+  }
+});
+$("macros").addEventListener("input", (e) => {
+  if (selMacro == null) return;
+  const m = state.macros[selMacro];
+  const t = e.target;
+  if (t.id === "mName") {
+    const old = m.name;
+    m.name = t.value;
+    for (const s of Object.values(state.slots)) if (s.kind === "macro" && s.value === old) s.value = m.name;
+  } else if (t.id === "mIcon") m.icon = t.value.trim();
+  else if (t.id === "mChar") m.perChar = t.checked;
+  else if (t.id === "mBody") { m.body = t.value; updateCounter(); }
+  else return;
+  refresh();
+  if (t.id === "mName" && sel != null && state.slots[sel] && state.slots[sel].kind === "macro") { const v = $("val"); if (v && document.activeElement !== v) v.value = state.slots[sel].value; }
+});
+
+// Global keys: "Set key" capture first, then keybind mode.
+document.addEventListener("keydown", (e) => {
+  if (capture) {
+    if (e.key === "Escape") { e.preventDefault(); capture = null; render(); return; }
+    const k = keyFromEvent(e);
+    if (k) { e.preventDefault(); finishCapture(k); }
+    return;
+  }
+  if (!bindMode) return;
+  if (e.key === "Escape") { setBindMode(false); return; }
+  if (hoverSlot == null || isTyping(e.target)) return;
+  const k = keyFromEvent(e);
+  if (k) { e.preventDefault(); setBind(slotInfo(hoverSlot).command, k); render(); }
+});
+document.addEventListener("mousedown", (e) => {
+  if (!capture) return;
+  const k = keyFromMouse(e);
+  if (k) { e.preventDefault(); finishCapture(k); }
+  else if (e.button === 0 && !e.target.closest("[data-setkey]")) { capture = null; renderEditor(); renderOther(); }
+}, true);
+document.addEventListener("wheel", (e) => {
+  if (!capture) return;
+  e.preventDefault();
+  finishCapture(mods(e) + (e.deltaY < 0 ? "MOUSEWHEELUP" : "MOUSEWHEELDOWN"));
+}, { passive: false });
+
+// Export / load
+$("copy").addEventListener("click", async () => {
+  const out = $("out");
+  try { await navigator.clipboard.writeText(out.value); }
+  catch (e) { out.select(); document.execCommand("copy"); }
+  $("copy").textContent = "Copied";
+  setTimeout(() => { $("copy").textContent = "Copy plan string"; }, 1500);
+});
+$("out").addEventListener("focus", (e) => e.target.select());
+function hasContent() { return Object.keys(state.slots).length || state.macros.length; }
+function replaceState(s, msg) {
+  if (hasContent() && !confirm("Replace the current plan? Copy its plan string first if you want to keep it.")) return;
+  state = s; sel = null; selMacro = null; capture = null;
+  render();
+  $("loadMsg").textContent = msg;
+}
+$("load").addEventListener("click", () => {
+  try { replaceState(parse($("in").value), "Loaded."); $("in").value = ""; }
+  catch (err) { $("loadMsg").textContent = err.message; }
+});
+$("example").addEventListener("click", () => replaceState(examplePlan(), "Example loaded. Spell names are the vanilla ones; check them against your spellbook."));
+$("reset").addEventListener("click", () => replaceState(emptyState(), "Empty plan. Bar 1 keeps the game's default keys 1 to =."));
+
+// ---- Start ----
+$("spellList").innerHTML = SPELLS.map((s) => `<option value="${esc(s)}">`).join("");
+restore();
+render();
+</script>
+</body>
+</html>

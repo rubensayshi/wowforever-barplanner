@@ -4,9 +4,13 @@ Sources:
 - wowforevertalents.com, which reads the Forever client (build 1.60.1.70707) and the
   server's hotfixes: the trainer spells per class with each rank's level (/abilities/<class>/),
   the talent trees (/<class>/) and the racials (/racials/). Spells the trainer no longer
-  teaches and passives are left out, the way the site marks them.
+  teaches and passives are left out, the way the site marks them. The site's talent calculator
+  script gives each talent rank's spell ID, including the talents only the hotfixes add.
 - The Forever client's tables via wago.tools (SpellName, Spell, SpellMisc, SkillLineAbility,
   Talent, TalentTab): spell IDs for each rank (for Wowhead tooltips) and which talents are passive.
+  A talent is active when the client says its spell isn't passive. Only for spells the client
+  tables don't have does the site's cost line decide (passives have none). The cost line alone
+  isn't enough: Water Shield costs nothing and has no cooldown, so it has no cost line.
 
 Run: python3 -I tools/build-spellbook.py index.html [cache-dir]
 The cache dir keeps the downloaded pages and tables; delete it to fetch fresh data.
@@ -113,6 +117,22 @@ def talents(h):
     return out
 
 
+def talent_spell_ids(cache):
+    """Spell ID per rank of every talent, from the site's talent calculator: {class: {name: [ids]}}.
+    The client's Talent table lacks the talents Forever added in hotfixes (Water Shield, Riptide, ...)."""
+    page = fetch(f"{SITE}/warrior/", cache, "talents-warrior.html")
+    entry = re.search(r'component-url="/_astro/(TalentCalculator\.[^"]+\.js)"', page).group(1)
+    out = {}
+    for js in [entry] + re.findall(r'from"\./([^"]+\.js)"', fetch(f"{SITE}/_astro/{entry}", cache, entry)):
+        s = fetch(f"{SITE}/_astro/{js}", cache, js)
+        for m in re.finditer(r'\{"id":\d+,"slug":"\w+","name":"\w+","color":"#\w+","icon":"class_\w+","trees":', s):
+            c = json.JSONDecoder().raw_decode(s, m.start())[0]
+            out[c["slug"].upper()] = {t["name"]: [r.get("spellId", 0) for r in t["ranks"]] for tree in c["trees"] for t in tree["talents"]}
+    if set(CLASSES) - set(out):
+        sys.exit(f"talent calculator data not found for {sorted(set(CLASSES) - set(out))} (site layout changed?)")
+    return out
+
+
 def racials(h):
     """Active racials per race on /racials/: {race: [(name, icon, cooldown line, text)]}. Passives have no cooldown."""
     parts = re.split(r"<h([1-4])[^>]*>([^<]{2,40})</h\1>", clean(h))
@@ -152,6 +172,7 @@ def main(html_path, cache_dir=".spellbook-cache"):
         ranks = [int(r[f"SpellRank_{i}"]) for i in range(9) if int(r[f"SpellRank_{i}"] or 0)]
         if ranks:
             talent_rows[tab_class.get(int(r["TabID"]), 0)][names.get(ranks[0], "")] = ranks
+    site_talents = talent_spell_ids(cache)
     by_name = collections.defaultdict(list)
     for i, n in names.items():
         by_name[n].append(i)
@@ -182,7 +203,7 @@ def main(html_path, cache_dir=".spellbook-cache"):
             ranks, texts = [], []
             if d.get("tr"):  # rank 1 comes from a talent, later ranks from the trainer
                 tr = d["tr"]
-                ranks.append([spell_id(d["n"], tr["r"], cls), tr["l"], 1])
+                ranks.append([(site_talents[cls].get(d["n"]) or [0])[0] or spell_id(d["n"], tr["r"], cls), tr["l"], 1])
                 texts.append([tr.get("m", ""), tr.get("d", "")])
             for k in d["k"]:
                 ranks.append([spell_id(d["n"], k["r"], cls, single=len(d["k"]) == 1), k["l"]])
@@ -209,11 +230,15 @@ def main(html_path, cache_dir=".spellbook-cache"):
         # Active talents that the trainer doesn't teach (Elemental Mastery, Moonkin Form, ...).
         rows = talent_rows[CLASS_BIT[cls]]
         for n, icon, points, cost, desc in talents(fetch(f"{SITE}/{cls.lower()}/", cache, f"talents-{cls.lower()}.html")):
-            if n in seen or not cost:  # already listed with its trainer ranks, or passive
+            if n in seen:  # already listed with its trainer ranks
+                continue
+            ids = site_talents[cls].get(n) or [0]
+            if not all(ids):
+                ids = rows.get(n) or [spell_id(n, "", cls, single=True)]
+            if passive.get(ids[0], not cost):
                 continue
             seen.add(n)
             lvl = 10 + points
-            ids = rows.get(n) or [spell_id(n, "", cls, single=True)]
             item = {"n": n, "i": icon, "r": [[i, lvl, 1] for i in ids], "t": 1}
             if not ids[0]:  # newer than the client tables: no Wowhead tooltip, so keep the site's text
                 item["tt"] = {"0": [cost, desc]}

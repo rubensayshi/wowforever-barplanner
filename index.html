@@ -113,32 +113,41 @@ header.top { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: flex-e
   border: 2px solid; border-color: var(--frame-hi) var(--frame) var(--frame-lo) var(--frame); box-shadow: 0 0 0 1px #000, inset 0 0 0 1px #000, 0 10px 30px rgb(0 0 0 / .6); }
 .screen::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgb(0 0 0 / .6), rgb(0 0 0 / .15) 45%, rgb(0 0 0 / 0) 70%); pointer-events: none; transition: background .15s; }
 .screen.kb::before { background: rgb(4 8 16 / .6); }
-.stage { --b: clamp(24px, calc(100cqw / 18), 50px); --g: 3px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px; } /* not positioned: .side is placed against the whole screen */
+.stage { --bar-standard: clamp(24px, calc(100cqw / 18), 50px); --g: 3px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px; } /* not positioned: .side is placed against the whole screen */
 .stack { display: flex; flex-direction: column-reverse; align-items: center; gap: 5px; }
-.bar { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: var(--b); grid-template-rows: var(--b); gap: var(--g); }
+.bar { --b: calc(var(--bar-standard) * var(--bar-scale, 1)); position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: var(--b); grid-template-rows: var(--b); gap: var(--g); }
 .bar.vertical { grid-auto-flow: row; grid-auto-rows: var(--b); grid-template-columns: var(--b); grid-template-rows: none; grid-auto-columns: auto; }
+.bar-settings { position: absolute; z-index: 5; display: flex; align-items: center; gap: 3px; padding: 4px; background: rgb(8 8 10 / .96); border: 1px solid var(--frame-hi); border-radius: 4px; box-shadow: 0 3px 12px rgb(0 0 0 / .7); font-size: 12px; }
+.bar-settings button { min-width: 24px; padding: 1px 5px; border: 1px solid var(--frame); border-radius: 3px; background: var(--surface-2); color: var(--fg); cursor: pointer; }
+.bar-settings button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+.bar-settings input { width: 4.2em; padding: 2px 3px; text-align: right; }
+.bar-settings label { display: flex; align-items: center; gap: 2px; color: var(--muted); }
+.bar-settings .close { min-width: 20px; color: var(--muted); }
+.screen.arranging .bar[data-layout] { cursor: grab; touch-action: none; }
+.screen.arranging .bar[data-layout].dragging { cursor: grabbing; }
 .bar-label { position: absolute; right: calc(100% + 8px); top: 50%; transform: translateY(-50%); font: 600 11px/1.1 var(--font-body); white-space: nowrap; text-align: right; color: rgb(255 255 255 / .85); text-shadow: 0 1px 2px #000, 0 0 2px #000; pointer-events: none; }
 .bar.vertical .bar-label { right: auto; left: 50%; top: calc(100% + 4px); transform: translateX(-50%); }
 .bar-label b { color: var(--gold); font-weight: 400; }
 /* Page arrows next to the main bar, like the game's */
 .pager { position: absolute; left: calc(100% + 5px); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 1px; font: 700 11px/1 var(--font-body); color: #fff; text-shadow: 0 1px 2px #000; }
+.bar-label { cursor: pointer; pointer-events: auto; }
+.bar.vertical .pager { left: 50%; top: calc(100% + 5px); transform: translateX(-50%); flex-direction: row; }
 .pager button { width: 18px; height: 13px; padding: 0; border: 1px solid rgb(255 255 255 / .3); border-radius: 3px; background: rgb(0 0 0 / .6); color: var(--gold); font-size: 8px; line-height: 1; cursor: pointer; }
 .pager button:hover { border-color: var(--gold); }
-.side { position: absolute; right: 12px; top: 45%; transform: translateY(-50%); display: flex; flex-direction: row-reverse; gap: 5px; z-index: 1; }
+.side { position: absolute; right: 12px; top: 45%; transform: translateY(-50%); display: flex; flex-direction: row-reverse; gap: 5px; z-index: 1; pointer-events: none; }
 /* Side bars are 12 buttons tall, so they size by the screen's height (16:10 of its width). */
-.side .bar { --b: min(var(--bmain, 50px), calc(100cqw / 25)); }
-.mini-row { display: flex; justify-content: space-between; align-items: flex-end; width: calc(12 * var(--b) + 11 * var(--g)); gap: 12px; min-height: 0; }
-.small { --bs: calc(var(--b) * .78); }
-.small .bar { grid-auto-columns: var(--bs); grid-template-rows: var(--bs); }
-.small .ab { width: var(--bs); height: var(--bs); }
+.side .bar { --bar-standard: min(clamp(24px, calc(100cqw / 18), 50px), calc(100cqw / 25)); pointer-events: auto; }
+.side.horizontal { flex-direction: column; align-items: flex-end; }
+.mini-row { display: flex; justify-content: space-between; align-items: flex-end; width: calc(12 * var(--bar-standard) + 11 * var(--g)); gap: 12px; min-height: 0; }
+.small .bar { --b: calc(var(--bar-standard) * .78 * var(--bar-scale, 1)); grid-auto-columns: var(--b); grid-template-rows: var(--b); }
+.small .ab { width: var(--b); height: var(--b); }
 @container screen (max-width: 680px) {
-  .stage { --b: clamp(19px, calc((100cqw - 24px - 33px) / 12), 40px); --g: 3px; }
+  .stage { --bar-standard: clamp(19px, calc((100cqw - 24px - 33px) / 12), 40px); --g: 3px; }
   .side { position: static; transform: none; flex-direction: column; order: -1; }
-  .side .bar { --b: inherit; }
-  .side .bar.vertical { grid-auto-flow: column; grid-auto-columns: var(--b); grid-template-rows: var(--b); grid-template-columns: none; grid-auto-rows: auto; }
   .bar-label, .bar.vertical .bar-label { display: none; }
   .pager { left: auto; right: calc(100% + 1px); }
   .pager button { width: 12px; }
+  .bar.vertical .pager { left: 50%; right: auto; top: calc(100% + 5px); transform: translateX(-50%); }
 }
 /* A container query can't restyle the screen itself. Keep it from forcing a 16:10 shape on phones. */
 @media (max-width: 712px) { .screen { aspect-ratio: auto; min-height: 340px; } }
@@ -159,6 +168,13 @@ header.top { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: flex-e
 .ab.sel { box-shadow: 0 0 0 2px var(--gold), 0 0 10px rgb(255 209 0 / .75); }
 .ab.stance-on { box-shadow: 0 0 0 2px var(--gold), inset 0 0 12px rgb(255 209 0 / .6); }
 .ab.drop { box-shadow: 0 0 0 2px #fff, 0 0 12px #fff; }
+.ab.book-hover { z-index: 2; }
+.ab.book-hover::before { content: ""; position: absolute; z-index: 4; inset: 0; border: 3px solid #39ff14; border-radius: 3px; box-shadow: inset 0 0 8px rgb(57 255 20 / .8); pointer-events: none; animation: book-hover-pulse .65s ease-in-out infinite alternate; }
+@keyframes book-hover-pulse {
+  from { border-color: #39ff14; box-shadow: inset 0 0 6px rgb(57 255 20 / .65); }
+  to { border-color: #b7ff00; box-shadow: inset 0 0 18px rgb(57 255 20 / 1); }
+}
+@media (prefers-reduced-motion: reduce) { .ab.book-hover::before { animation: none; border-color: #39ff14; box-shadow: inset 0 0 12px rgb(57 255 20 / .9); } }
 .kb .ab { box-shadow: 0 0 0 1px #4f9dff, 0 0 7px rgb(79 157 255 / .75); }
 .kb .ab:hover { box-shadow: 0 0 0 2px #fff, 0 0 14px #4f9dff; }
 
@@ -189,6 +205,9 @@ header.top { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: flex-e
 .entry .sub { font-size: .78rem; color: var(--ink-muted); line-height: 1.2; }
 .entry.later .ic { filter: grayscale(1) brightness(.65); }
 .entry.later .nm { color: #85735a; }
+.entry.used .ic { filter: grayscale(1) brightness(.65); }
+.entry.used .nm, .entry.used .sub { color: #766d5d; }
+.used-check { color: #168a2e; margin-right: 4px; filter: none; }
 .entry .new { color: #a86a00; font-size: .8em; }
 .book-foot { padding: 8px 12px 12px; border-top: 2px solid var(--frame-lo); background: linear-gradient(#1c1610, #13100c); }
 .book-empty { padding: 10px; color: var(--ink-muted); font-size: .9rem; }
@@ -297,7 +316,7 @@ ol.steps li, .howto ul li { margin-bottom: 5px; }
       <span id="barChips" class="row"></span>
     </div>
     <div class="screen" id="screen"></div>
-    <p class="note">Drag spells, macros and items onto the bars. Drag a button onto another to swap, or off the bars to empty it. Click a stance to plan the main bar for that stance. Click a button, then click spells in the spellbook to fill buttons one after another.</p>
+    <p class="note">Drag spells, macros and items onto the bars. Hold Shift and drag a bar to move it. Click its label or a gap to change its direction and size. These settings and visible bars are saved in this browser. Drag a button onto another to swap, or off the bars to empty it. Click a stance to plan the main bar for that stance. Click a button, then click spells in the spellbook to fill buttons one after another.</p>
   </section>
 
   <section class="col-side">
@@ -442,6 +461,7 @@ BAR1_KEYS.forEach((k, i) => { GAME_DEFAULTS[k] = "Bar 1 button " + (i + 1); DEFA
 
 const MAX_MACRO_BYTES = 255, MAX_MACRO_NAME = 16, MAX_GENERAL = 120, MAX_CHAR = 18;
 const STORE = "barplanner.v3";
+const BAR_LAYOUT_STORE = "barplanner.actionbars.v1";
 const ICON = (name, size = "large") => `https://wow.zamimg.com/images/wow/icons/${size}/${String(name).toLowerCase()}.jpg`;
 
 // ---- State ----
@@ -455,6 +475,8 @@ let pageBeforePage2 = 0;
 // Warriors are always in a stance, so their main bar has no plain page: it starts on Battle Stance.
 const restPage = () => (app.cls === "WARRIOR" ? 73 : 0);
 let kbMode = false, hoverCmd = null, capture = null, lastBound = "";
+let bookHoveredSpell = null;
+let barLayout = {}, barLayoutSaveError = false;
 
 function emptyPlan(cls) {
   const binds = {};
@@ -490,11 +512,47 @@ function save() {
   let ok = true;
   try { localStorage.setItem(STORE, JSON.stringify(Object.assign({}, app, { plans: kept }))); } catch (e) { ok = false; }
   const el = $("saveState"), n = kept.length;
-  el.textContent = !ok ? "Not saved: this browser blocks storage here. Copy the plan string to keep your plan."
+  el.textContent = barLayoutSaveError ? "Actionbar positions could not be saved in this browser."
+    : !ok ? "Not saved: this browser blocks storage here. Copy the plan string to keep your plan."
     : n ? `${n} plan${n === 1 ? "" : "s"} saved in this browser` : "Nothing saved yet. Plans save as you edit them.";
-  el.classList.toggle("warn", !ok);
+  el.classList.toggle("warn", !ok || barLayoutSaveError);
+}
+function saveBarLayout() {
+  try {
+    localStorage.setItem(BAR_LAYOUT_STORE, JSON.stringify(barLayout));
+    barLayoutSaveError = false;
+  } catch (e) { barLayoutSaveError = true; }
+  if ($("saveState")) {
+    $("saveState").textContent = barLayoutSaveError ? "Actionbar settings could not be saved in this browser." : "Actionbar settings saved in this browser.";
+    $("saveState").classList.toggle("warn", barLayoutSaveError);
+  }
 }
 function restore() {
+  try {
+    const raw = localStorage.getItem(BAR_LAYOUT_STORE);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (saved && typeof saved === "object" && !Array.isArray(saved)) {
+        for (const [key, pos] of Object.entries(saved)) {
+          if (key === "shown" && pos && typeof pos === "object" && !Array.isArray(pos)) {
+            barLayout.shown = {};
+            for (const [cls, keys] of Object.entries(pos)) {
+              if (CLASS_NAME[cls] && Array.isArray(keys)) barLayout.shown[cls] = keys.filter((k) => BARS.some((b) => b.key === k));
+            }
+            continue;
+          }
+          if (!/^(b[1-8]|stance|pet)$/.test(key) || !pos || typeof pos !== "object") continue;
+          const clean = {};
+          if (Number.isFinite(pos.x) && Number.isFinite(pos.y) && Math.abs(pos.x) <= 1.5 && Math.abs(pos.y) <= 1.5) {
+            clean.x = pos.x; clean.y = pos.y;
+          }
+          if (typeof pos.vertical === "boolean") clean.vertical = pos.vertical;
+          if (Number.isFinite(pos.scale) && pos.scale >= 0.25 && pos.scale <= 2) clean.scale = pos.scale;
+          if (Object.keys(clean).length) barLayout[key] = clean;
+        }
+      }
+    }
+  } catch (e) { barLayoutSaveError = true; }
   try { localStorage.removeItem("barplanner.backdrop"); } catch (e) { /* custom backdrops are gone */ }
   try {
     const raw = localStorage.getItem(STORE);
@@ -749,12 +807,15 @@ function barHtml(bar, vertical) {
     label = `Bar 1${page ? `<br><b>${esc(pageName(page))}</b>` : ""}`;
     pager = `<span class="pager"><button type="button" data-pg="1" aria-label="Next page" title="Page 2 (Shift+2 in game)">▲</button><span>${page === PAGE2 ? 2 : 1}</span><button type="button" data-pg="1" aria-label="Previous page" title="Page 1">▼</button></span>`;
   }
-  return `<div class="bar${vertical ? " vertical" : ""}" data-bar="${bar.key}"><span class="bar-label">${label}</span>${cells.join("")}${pager}</div>`;
+  const layout = barLayout[bar.key] || {};
+  const isVertical = layout.vertical == null ? vertical : layout.vertical;
+  return `<div class="bar${isVertical ? " vertical" : ""}" data-bar="${bar.key}" data-layout="${bar.key}" data-default-vertical="${vertical}" style="--bar-scale:${layout.scale || 1}"><span class="bar-label" title="Click for bar settings">${label}</span>${cells.join("")}${pager}</div>`;
 }
 function stanceBarHtml() {
   const st = D.stances[app.cls];
   if (!st) return "<div></div>";
-  return `<div class="bar" aria-label="Stance bar">${st.map((s, i) => {
+  const layout = barLayout.stance || {};
+  return `<div class="bar${layout.vertical ? " vertical" : ""}" data-layout="stance" data-default-vertical="false" style="--bar-scale:${layout.scale || 1}" aria-label="Stance bar">${st.map((s, i) => {
     const cmd = "SHAPESHIFTBUTTON" + (i + 1);
     const sp = findSpell(s.n);
     const lvl = sp ? learnLevel(sp) : 1;
@@ -770,7 +831,8 @@ function stanceBarHtml() {
 }
 function petBarHtml() {
   if (!PET_CLASSES.includes(app.cls)) return "<div></div>";
-  return `<div class="bar" aria-label="Pet bar">${PET_BAR.map(([n, icon], i) => {
+  const layout = barLayout.pet || {};
+  return `<div class="bar${layout.vertical ? " vertical" : ""}" data-layout="pet" data-default-vertical="false" style="--bar-scale:${layout.scale || 1}" aria-label="Pet bar">${PET_BAR.map(([n, icon], i) => {
     const cmd = "BONUSACTIONBUTTON" + (i + 1);
     const key = P().binds[cmd];
     return buttonHtml({ attrs: `data-cmd="${cmd}" data-pet="${i}" tabindex="0" role="button" aria-label="${esc("Pet bar: " + n)}" data-tip="${esc(tip(n, "~Pet bar", key && "#Key: " + key, "+Click to set its key"))}"`, icon, key, cls: " fixed" + (sel && sel.cmd === cmd ? " sel" : "") });
@@ -778,7 +840,7 @@ function petBarHtml() {
 }
 function renderScreen() {
   if (!page) page = restPage();
-  const shown = P().shown;
+  const shown = visibleBars();
   const stack = BARS.filter((b) => b.where !== "side" && (b.key === "b1" || shown.includes(b.key))).map((b) => barHtml(b));
   const side = BARS.filter((b) => b.where === "side" && shown.includes(b.key)).map((b) => barHtml(b, true));
   const sc = $("screen");
@@ -791,11 +853,137 @@ function renderScreen() {
       <div class="side">${side.join("")}</div>
       <div class="stack">${stack.join("")}<div class="mini-row small">${stanceBarHtml()}${petBarHtml()}</div></div>
     </div>`;
+  $("screen").querySelector(".side").classList.toggle("horizontal", !!$("screen").querySelector(".side .bar:not(.vertical)"));
+  applyBarLayout();
   $("barChips").innerHTML = BARS.slice(1).map((b) => {
-    return `<button class="chip" data-bar="${b.key}" aria-pressed="${shown.includes(b.key)}" title="${b.where === "side" ? "Right edge" : "Stacked above the main bar"}">${b.name.slice(4)}</button>`;
+    return `<button class="chip" data-bar="${b.key}" aria-pressed="${shown.includes(b.key)}" title="${b.where === "side" ? "Right edge" : "Stacked above the main bar"} · Right-click to reset">${b.name.slice(4)}</button>`;
   }).join("");
   $("kbBtn").setAttribute("aria-pressed", String(kbMode));
+  applyBookSpellHighlight();
 }
+function applyBookSpellHighlight() {
+  const name = bookHoveredSpell && baseName(bookHoveredSpell).toLowerCase();
+  const slots = P().slots;
+  screen.querySelectorAll(".ab[data-slot]").forEach((button) => {
+    const spell = slots[button.dataset.slot];
+    button.classList.toggle("book-hover", !!name && !!spell && spell.kind === "spell" && baseName(spell.value).toLowerCase() === name);
+  });
+}
+function applyBarLayout() {
+  const width = screen.clientWidth, height = screen.clientHeight, bounds = screen.getBoundingClientRect();
+  let adjusted = false;
+  screen.querySelectorAll(".bar[data-layout]").forEach((bar) => {
+    const key = bar.dataset.layout, pos = barLayout[key] || { x: 0, y: 0 };
+    const scale = pos.scale || 1, maxScale = maxBarScale(bar);
+    if (scale > maxScale) {
+      barLayout[key] = Object.assign({}, pos, { scale: maxScale });
+      bar.style.setProperty("--bar-scale", maxScale);
+      adjusted = true;
+    }
+    const offsetX = (pos.x || 0) * width, offsetY = (pos.y || 0) * height;
+    bar.style.left = `${offsetX}px`;
+    bar.style.top = `${offsetY}px`;
+    const rect = bar.getBoundingClientRect();
+    const left = Math.max(bounds.left + screen.clientLeft,
+      Math.min(bounds.right - screen.clientLeft - rect.width, rect.left));
+    const top = Math.max(bounds.top + screen.clientTop,
+      Math.min(bounds.bottom - screen.clientTop - rect.height, rect.top));
+    if (left !== rect.left || top !== rect.top) {
+      barLayout[key] = Object.assign({}, pos, {
+        x: (offsetX + left - rect.left) / width,
+        y: (offsetY + top - rect.top) / height,
+      });
+      bar.style.left = `${barLayout[key].x * width}px`;
+      bar.style.top = `${barLayout[key].y * height}px`;
+      adjusted = true;
+    }
+  });
+  if (adjusted) saveBarLayout();
+}
+function captureBarPositions(excludeKey) {
+  const positions = {};
+  screen.querySelectorAll(".bar[data-layout]").forEach((bar) => {
+    if (bar.dataset.layout === excludeKey) return;
+    const rect = bar.getBoundingClientRect();
+    positions[bar.dataset.layout] = { x: rect.left, y: rect.top };
+  });
+  return positions;
+}
+function preserveBarPositions(positions) {
+  const width = screen.clientWidth, height = screen.clientHeight;
+  if (!width || !height) return;
+  let adjusted = false;
+  for (const [key, previous] of Object.entries(positions)) {
+    const bar = screen.querySelector(`.bar[data-layout="${key}"]`);
+    if (!bar) continue;
+    const rect = bar.getBoundingClientRect();
+    const dx = previous.x - rect.left, dy = previous.y - rect.top;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
+    const pos = barLayout[key] || {};
+    barLayout[key] = Object.assign({}, pos, {
+      x: (pos.x || 0) + dx / width,
+      y: (pos.y || 0) + dy / height,
+    });
+    bar.style.left = `${barLayout[key].x * width}px`;
+    bar.style.top = `${barLayout[key].y * height}px`;
+    adjusted = true;
+  }
+  if (adjusted) {
+    applyBarLayout();
+    saveBarLayout();
+  }
+}
+function maxBarScale(bar) {
+  const cells = bar.querySelectorAll(".ab");
+  if (!cells.length) return 2;
+  const key = bar.dataset.layout, scale = (barLayout[key] && barLayout[key].scale) || 1;
+  const cell = cells[0].getBoundingClientRect();
+  const baseSize = (bar.classList.contains("vertical") ? cell.height : cell.width) / scale;
+  const gap = parseFloat(getComputedStyle(bar).rowGap) || 0;
+  const available = (bar.classList.contains("vertical") ? screen.clientHeight : screen.clientWidth) - 8;
+  return Math.max(0.25, Math.min(2, (available - gap * (cells.length - 1)) / (baseSize * cells.length)));
+}
+function visibleBars() {
+  const saved = barLayout.shown && barLayout.shown[app.cls];
+  const planShown = P().shown;
+  return Array.isArray(saved) ? saved : Array.isArray(planShown) ? planShown : ["b1", "b2", "b3"];
+}
+function showBarSettings(bar) {
+  const key = bar.dataset.layout, settings = barLayout[key] || {};
+  const vertical = settings.vertical == null ? bar.dataset.defaultVertical === "true" : settings.vertical;
+  const maxPercent = Math.floor(maxBarScale(bar) * 100);
+  const percent = Math.min(maxPercent, Math.round((settings.scale || 1) * 100));
+  const popup = document.createElement("div");
+  popup.className = "bar-settings";
+  popup.dataset.layout = key;
+  popup.setAttribute("role", "group");
+  popup.setAttribute("aria-label", `${bar.getAttribute("aria-label") || bar.querySelector(".bar-label")?.textContent || "Action"} bar settings`);
+  popup.innerHTML = `<button type="button" data-orientation="horizontal" aria-pressed="${!vertical}" title="Horizontal">↔</button><button type="button" data-orientation="vertical" aria-pressed="${vertical}" title="Vertical">↕</button><label><input type="number" min="25" max="${maxPercent}" step="5" value="${percent}" aria-label="Bar size percentage">%</label><button type="button" class="close" aria-label="Close settings">×</button>`;
+  const screenRect = screen.getBoundingClientRect(), barRect = bar.getBoundingClientRect();
+  screen.querySelector(".bar-settings")?.remove();
+  screen.append(popup);
+  const left = Math.max(4, Math.min(barRect.left - screenRect.left, screen.clientWidth - popup.offsetWidth - 4));
+  const top = Math.max(4, Math.min(barRect.bottom - screenRect.top + 4, screen.clientHeight - popup.offsetHeight - 4));
+  popup.style.left = `${left}px`;
+  popup.style.top = `${top}px`;
+}
+function setBarLayout(key, update) {
+  barLayout[key] = Object.assign({}, barLayout[key], update);
+  saveBarLayout();
+}
+function resetBarLayout(key) {
+  const positions = captureBarPositions(key);
+  delete barLayout[key];
+  const shown = visibleBars();
+  if (!shown.includes(key)) {
+    if (!barLayout.shown) barLayout.shown = {};
+    barLayout.shown[app.cls] = BARS.map((bar) => bar.key).filter((bar) => bar === key || shown.includes(bar));
+  }
+  renderScreen();
+  preserveBarPositions(positions);
+  saveBarLayout();
+}
+addEventListener("resize", applyBarLayout);
 
 // ---- Rendering: spellbook ----
 function bookEntries() {
@@ -832,14 +1020,19 @@ function renderBook() {
     foot.innerHTML = `<button class="btn" id="addMacro">New macro</button>`;
   } else {
     const entries = bookEntries();
-    list.innerHTML = entries.map((e) => `<div class="entry${e.later ? " later" : ""}" draggable="true" data-drag='${esc(JSON.stringify({ type: e.type, value: e.value }))}' aria-label="${esc(e.name)}"${whAttr(e.type, e.value)} data-tip="${esc(tip(e.name, ...(e.type === "spell" ? localTip(e.value) : []), "~" + e.sub, e.isNew && "#New in Forever", e.later && "!Requires level " + e.lvl, sel && sel.slot ? "+Click to put it on the selected button" : "+Drag onto a bar"))}">
+    const placedSpells = new Set(Object.values(P().slots).filter((s) => s.kind === "spell").map((s) => baseName(s.value).toLowerCase()));
+    list.innerHTML = entries.map((e) => {
+      const used = e.type === "spell" && placedSpells.has(baseName(e.value).toLowerCase());
+      return `<div class="entry${e.later ? " later" : ""}${used ? " used" : ""}" draggable="true" data-drag='${esc(JSON.stringify({ type: e.type, value: e.value }))}' aria-label="${esc(e.name)}${used ? " (already on a bar)" : ""}"${whAttr(e.type, e.value)} data-tip="${esc(tip(e.name, ...(e.type === "spell" ? localTip(e.value) : []), "~" + e.sub, e.isNew && "#New in Forever", e.later && "!Requires level " + e.lvl, used && "~Already on a bar", sel && sel.slot ? "+Click to put it on the selected button" : "+Drag onto a bar"))}">
         <div class="ic" style="background-image:url(${ICON(e.icon, "medium")})"></div>
-        <div><div class="nm">${esc(e.name)}${e.isNew ? ` <span class="new" aria-label="New in Forever">★</span>` : ""}</div><div class="sub">${esc(e.sub)}</div></div></div>`).join("")
+        <div><div class="nm">${used ? `<span class="used-check" aria-hidden="true">✅</span>` : ""}${esc(e.name)}${e.isNew ? ` <span class="new" aria-label="New in Forever">★</span>` : ""}</div><div class="sub">${esc(e.sub)}</div></div></div>`;
+    }).join("")
       || `<div class="book-empty">Nothing here${$("search").value ? " for that search" : ""}.</div>`;
     foot.innerHTML = app.tab === "items"
       ? `<label class="field" style="margin:0">Other item (name or item:ID)<div class="row"><input type="text" id="customItem" placeholder="Minor Healing Potion" style="flex:1"><button class="btn" id="customItemPut">Put on button</button></div></label>`
       : `<span class="note" style="margin:0">${sel && sel.slot ? "Click a spell to put it on the selected button." : "Drag onto a bar, or select a button first and click."} Grey = not learned at level ${app.level}.</span>`;
   }
+  applyBookSpellHighlight();
 }
 
 // ---- Rendering: side editors ----
@@ -1071,14 +1264,114 @@ $("kbBtn").addEventListener("click", () => setKb(!kbMode));
 $("barChips").addEventListener("click", (e) => {
   const b = e.target.closest("[data-bar]");
   if (!b) return;
-  const k = b.dataset.bar, p = P();
-  p.shown = p.shown.includes(k) ? p.shown.filter((x) => x !== k) : BARS.map((x) => x.key).filter((x) => x === k || p.shown.includes(x));
+  const k = b.dataset.bar, shown = visibleBars();
+  const positions = captureBarPositions();
+  const next = shown.includes(k) ? shown.filter((x) => x !== k) : BARS.map((x) => x.key).filter((x) => x === k || shown.includes(x));
+  if (!barLayout.shown) barLayout.shown = {};
+  barLayout.shown[app.cls] = next;
   render();
+  preserveBarPositions(positions);
+  saveBarLayout();
+});
+$("barChips").addEventListener("contextmenu", (e) => {
+  const b = e.target.closest("[data-bar]");
+  if (!b) return;
+  e.preventDefault();
+  resetBarLayout(b.dataset.bar);
 });
 
 // Screen: select, stances, keybind mode
 const screen = $("screen");
+let barPointer = null, suppressScreenClick = false;
+screen.addEventListener("pointerdown", (e) => {
+  if (!e.shiftKey || e.button !== 0 || kbMode) return;
+  const bar = e.target.closest(".bar[data-layout]");
+  if (!bar) return;
+  e.preventDefault();
+  const rect = bar.getBoundingClientRect(), pos = barLayout[bar.dataset.layout] || { x: 0, y: 0 };
+  const bounds = screen.getBoundingClientRect();
+  const width = screen.clientWidth, height = screen.clientHeight;
+  const offsetX = (pos.x || 0) * width, offsetY = (pos.y || 0) * height;
+  barPointer = {
+    bar, key: bar.dataset.layout, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved: false,
+    offsetX, offsetY, baseLeft: rect.left - offsetX, baseTop: rect.top - offsetY,
+    barWidth: rect.width, barHeight: rect.height, bounds, width, height,
+  };
+  screen.classList.add("arranging");
+  bar.setPointerCapture(e.pointerId);
+});
+document.addEventListener("pointermove", (e) => {
+  if (!barPointer) return;
+  const dx = e.clientX - barPointer.startX, dy = e.clientY - barPointer.startY;
+  if (!barPointer.moved && Math.hypot(dx, dy) < 3) return;
+  barPointer.moved = true;
+  barPointer.bar.classList.add("dragging");
+  const leftEdge = barPointer.bounds.left + screen.clientLeft;
+  const topEdge = barPointer.bounds.top + screen.clientTop;
+  const rightEdge = barPointer.bounds.right - screen.clientLeft;
+  const bottomEdge = barPointer.bounds.bottom - screen.clientTop;
+  const x = Math.max(leftEdge - barPointer.baseLeft,
+    Math.min(rightEdge - barPointer.baseLeft - barPointer.barWidth, barPointer.offsetX + dx));
+  const y = Math.max(topEdge - barPointer.baseTop,
+    Math.min(bottomEdge - barPointer.baseTop - barPointer.barHeight, barPointer.offsetY + dy));
+  barLayout[barPointer.key] = Object.assign({}, barLayout[barPointer.key], { x: x / barPointer.width, y: y / barPointer.height });
+  barPointer.bar.style.left = `${x}px`;
+  barPointer.bar.style.top = `${y}px`;
+});
+function finishBarPointer(e) {
+  if (!barPointer || e.pointerId !== barPointer.pointerId) return;
+  const active = barPointer;
+  active.bar.classList.remove("dragging");
+  screen.classList.remove("arranging");
+  barPointer = null;
+  if (active.moved) {
+    suppressScreenClick = true;
+    setTimeout(() => { suppressScreenClick = false; }, 0);
+    const hadSaveError = barLayoutSaveError;
+    try {
+      localStorage.setItem(BAR_LAYOUT_STORE, JSON.stringify(barLayout));
+      barLayoutSaveError = false;
+    } catch (err) { barLayoutSaveError = true; }
+    if (barLayoutSaveError) {
+      $("saveState").textContent = "Actionbar positions could not be saved in this browser.";
+      $("saveState").classList.add("warn");
+    } else {
+      $("saveState").classList.remove("warn");
+      if (hadSaveError) $("saveState").textContent = "Actionbar positions saved in this browser.";
+    }
+  }
+}
+document.addEventListener("pointerup", finishBarPointer);
+document.addEventListener("pointercancel", finishBarPointer);
 screen.addEventListener("click", (e) => {
+  if (suppressScreenClick) { suppressScreenClick = false; return; }
+  const popup = e.target.closest(".bar-settings");
+  if (popup) {
+    const orientation = e.target.closest("[data-orientation]");
+    if (orientation) {
+      const bar = screen.querySelector(`.bar[data-layout="${popup.dataset.layout}"]`);
+      if (!bar) return;
+      const vertical = orientation.dataset.orientation === "vertical";
+      setBarLayout(bar.dataset.layout, { vertical });
+      bar.classList.toggle("vertical", vertical);
+      popup.querySelectorAll("[data-orientation]").forEach((button) => {
+        button.setAttribute("aria-pressed", String(button === orientation));
+      });
+      const side = bar.closest(".side");
+      if (side) side.classList.toggle("horizontal", !!side.querySelector(".bar:not(.vertical)"));
+      applyBarLayout();
+      showBarSettings(bar);
+      return;
+    }
+    if (e.target.closest(".close")) popup.remove();
+    return;
+  }
+  const bar = e.target.closest(".bar[data-layout]");
+  if (bar && !e.target.closest(".ab, .pager")) {
+    showBarSettings(bar);
+    return;
+  }
+  screen.querySelector(".bar-settings")?.remove();
   if (e.target.id === "kbDone") { setKb(false); return; }
   if (e.target.closest("[data-pg]")) { // back from page 2 goes to the stance you were in
     if (page === PAGE2) page = pageBeforePage2; else { pageBeforePage2 = page; page = PAGE2; }
@@ -1096,6 +1389,20 @@ screen.addEventListener("click", (e) => {
     sel = { cmd: b.dataset.cmd, label: `Pet bar button ${+b.dataset.pet + 1}: ${PET_BAR[+b.dataset.pet][0]}` };
     render();
   }
+});
+screen.addEventListener("change", (e) => {
+  const input = e.target.closest(".bar-settings input[type=number]");
+  if (!input) return;
+  const popup = input.closest(".bar-settings"), bar = screen.querySelector(`.bar[data-layout="${popup.dataset.layout}"]`);
+  if (!bar) return;
+  const percent = Number(input.value);
+  if (!Number.isFinite(percent)) { input.value = String(Math.round((barLayout[bar.dataset.layout]?.scale || 1) * 100)); return; }
+  const scale = Math.max(25, Math.min(Math.floor(maxBarScale(bar) * 100), percent)) / 100;
+  input.value = String(Math.round(scale * 100));
+  setBarLayout(bar.dataset.layout, { scale });
+  bar.style.setProperty("--bar-scale", scale);
+  applyBarLayout();
+  showBarSettings(bar);
 });
 screen.addEventListener("keydown", (e) => {
   const b = e.target.closest(".ab");
@@ -1183,6 +1490,20 @@ $("bookList").addEventListener("click", (e) => {
     sel = n ? { slot: n } : sel;
     render();
   }
+});
+$("bookList").addEventListener("mouseover", (e) => {
+  const entry = e.target.closest(".entry");
+  if (!entry) return;
+  const data = JSON.parse(entry.dataset.drag);
+  bookHoveredSpell = entry.classList.contains("used") && data.type === "spell" ? data.value : null;
+  applyBookSpellHighlight();
+});
+$("bookList").addEventListener("mouseout", (e) => {
+  const from = e.target.closest(".entry");
+  const to = e.relatedTarget instanceof Element ? e.relatedTarget.closest(".entry") : null;
+  if (!from || from === to) return;
+  bookHoveredSpell = null;
+  applyBookSpellHighlight();
 });
 $("bookFoot").addEventListener("click", (e) => {
   if (e.target.id === "addMacro") {
